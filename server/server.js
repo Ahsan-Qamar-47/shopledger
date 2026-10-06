@@ -34,7 +34,11 @@ app.use((req, res, next) => {
   next();
 });
 
+const authRoutes = require('./routes/authRoutes');
+
 // Routes
+app.use('/api/auth', authRoutes);
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
