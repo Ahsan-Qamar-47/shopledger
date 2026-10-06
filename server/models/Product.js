@@ -5,8 +5,7 @@ const productSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
-      index: true
+      required: true
     },
     name: {
       type: String,
@@ -36,8 +35,7 @@ const productSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: true,
-      index: true
+      default: true
     }
   },
   {

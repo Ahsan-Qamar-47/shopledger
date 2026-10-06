@@ -1,13 +1,5 @@
 const Customer = require('../models/Customer');
-
-/**
- * Escapes regex special characters to prevent regex injection attacks
- * @param {string} string 
- * @returns {string}
- */
-const escapeRegex = (string) => {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
+const { escapeRegex } = require('../utils/regex');
 
 /**
  * @desc    Get all customers for logged in user (with search and pagination)
@@ -18,7 +10,7 @@ const getCustomers = async (req, res, next) => {
   try {
     const { search, limit = 50, page = 1 } = req.query;
 
-    const parsedLimit = Math.min(parseInt(limit, 10) || 50, 100);
+    const parsedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 50, 100));
     const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
     const skip = (parsedPage - 1) * parsedLimit;
 

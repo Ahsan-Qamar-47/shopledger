@@ -9,8 +9,10 @@ const register = async (req, res, next) => {
   try {
     const { name, email, password, shopName } = req.body;
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -22,7 +24,7 @@ const register = async (req, res, next) => {
     // Create user
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       passwordHash: password,
       shopName
     });
@@ -55,16 +57,10 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide both email and password',
-        error: {}
-      });
-    }
+    const normalizedEmail = email.toLowerCase().trim();
 
     // Check for user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(401).json({
         success: false,

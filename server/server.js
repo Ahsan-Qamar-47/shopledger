@@ -10,11 +10,7 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 dotenv.config();
 
 // Connect to Database
-if (process.env.MONGO_URI) {
-  connectDB().catch(err => {
-    console.error('Initial MongoDB Connection failed:', err.message);
-  });
-}
+connectDB();
 
 const app = express();
 
@@ -36,10 +32,12 @@ app.use((req, res, next) => {
 
 const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/products', productRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
