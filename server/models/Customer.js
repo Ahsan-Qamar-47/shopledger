@@ -17,6 +17,10 @@ const customerSchema = new mongoose.Schema(
       required: [true, 'Please provide customer phone number'],
       trim: true
     },
+    address: {
+      type: String,
+      trim: true
+    },
     totalBalance: {
       type: Number,
       default: 0

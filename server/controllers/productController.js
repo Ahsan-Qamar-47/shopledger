@@ -107,7 +107,7 @@ const getProductById = async (req, res, next) => {
  */
 const createProduct = async (req, res, next) => {
   try {
-    const { name, sku, price, stockQuantity = 0, lowStockThreshold = 5 } = req.body;
+    const { name, sku, price, costPrice = 0, stockQuantity = 0, lowStockThreshold = 5 } = req.body;
 
     // Check for duplicate SKU for this user
     const existingProduct = await Product.findOne({
@@ -128,6 +128,7 @@ const createProduct = async (req, res, next) => {
       name,
       sku: sku.trim(),
       price,
+      costPrice,
       stockQuantity,
       lowStockThreshold
     });
@@ -156,7 +157,7 @@ const createProduct = async (req, res, next) => {
  */
 const updateProduct = async (req, res, next) => {
   try {
-    const { name, sku, price, stockQuantity, lowStockThreshold } = req.body;
+    const { name, sku, price, costPrice, stockQuantity, lowStockThreshold } = req.body;
 
     const product = await Product.findOne({
       _id: req.params.id,
@@ -192,6 +193,7 @@ const updateProduct = async (req, res, next) => {
 
     if (name !== undefined) product.name = name;
     if (price !== undefined) product.price = price;
+    if (costPrice !== undefined) product.costPrice = costPrice;
     if (stockQuantity !== undefined) product.stockQuantity = stockQuantity;
     if (lowStockThreshold !== undefined) product.lowStockThreshold = lowStockThreshold;
 
