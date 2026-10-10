@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { getWhatsAppLink } from '../utils/phone';
+import { generateStatementPdf } from '../utils/generateStatementPdf';
+import { AlertTriangle, FileText, ArrowLeft, CreditCard, MessageCircle, FileDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
@@ -13,23 +16,43 @@ import AddPaymentModal from '../components/AddPaymentModal';
 const CustomerStatement = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchStatement();
+    fetchStatement(1);
   }, [id]);
 
-  const fetchStatement = async () => {
+  const fetchStatement = async (pageNum = 1) => {
     try {
-      const response = await api.get(`/transactions/customer/${id}`);
-      setCustomer(response.data.data.customer);
-      setTransactions(response.data.data.transactions || []);
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const response = await api.get(`/transactions/customer/${id}`, {
+        params: { page: pageNum, limit: 10 }
+      });
+      
+      if (pageNum === 1) {
+        setCustomer(response.data.data.customer);
+        setTransactions(response.data.data.transactions || []);
+      } else {
+        setTransactions(prev => [...prev, ...(response.data.data.transactions || [])]);
+      }
+
+      const pagination = response.data.data.pagination;
+      setHasMore(pagination.page < pagination.pages);
+      setPage(pagination.page);
+
     } catch (error) {
       toast.error('Failed to load statement');
       if (error.message === 'Customer not found or inactive') {
@@ -37,24 +60,56 @@ const CustomerStatement = () => {
       }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchStatement(page + 1);
     }
   };
 
   const handleWhatsAppReminder = () => {
     if (!customer) return;
     const balance = customer.totalBalance;
+    
+    // Safety check, though button should be disabled anyway
     if (balance <= 0) {
-      toast('Customer has no pending dues.', { icon: 'ℹ️' });
+      toast('Customer has no pending dues.', { icon: <MessageCircle className="w-4 h-4 text-emerald-400" /> });
       return;
     }
-    const message = `Hello ${customer.name},\nThis is a friendly reminder from ShopLedger regarding your pending khata balance of Rs. ${balance.toLocaleString()}.\nPlease arrange for payment at your earliest convenience.\nThank you!`;
+    
+    const shopName = user?.shopName || user?.name || 'ShopLedger';
+    const message = `Hello ${customer.name},\nThis is a friendly reminder from ${shopName} regarding your pending khata balance of Rs. ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\nPlease arrange for payment at your earliest convenience.\nThank you!`;
+    
     const link = getWhatsAppLink(customer.phone, message);
+    if (!link) {
+      toast.error('Invalid or missing phone number for this customer.');
+      return;
+    }
+    
     window.open(link, '_blank');
   };
 
-  const handleDownloadPDF = () => {
-    // Basic fallback for now - can be expanded later with jsPDF
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!customer) return;
+    
+    setPdfLoading(true);
+    try {
+      // Fetch ALL transactions for the PDF (limit=1000 to cover full statement)
+      const response = await api.get(`/transactions/customer/${id}`, {
+        params: { page: 1, limit: 1000 }
+      });
+      const allTransactions = response.data.data.transactions || [];
+      
+      generateStatementPdf(customer, allTransactions, user);
+      toast.success('PDF generated successfully');
+    } catch (error) {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   if (loading) {
@@ -68,7 +123,7 @@ const CustomerStatement = () => {
   if (!customer) {
     return (
       <EmptyState 
-        icon="⚠️"
+        icon={<AlertTriangle />}
         title="Customer Not Found"
         description="The customer you are looking for does not exist or has been deleted."
         actionLabel="Back to Customers"
@@ -87,9 +142,7 @@ const CustomerStatement = () => {
               onClick={() => navigate('/customers')}
               className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">{customer.name}</h2>
@@ -113,14 +166,19 @@ const CustomerStatement = () => {
           <Button variant="primary" onClick={() => setIsSaleModalOpen(true)}>
             + Add Sale
           </Button>
-          <Button variant="secondary" onClick={() => setIsPaymentModalOpen(true)}>
-            💳 Add Payment
+          <Button variant="secondary" onClick={() => setIsPaymentModalOpen(true)} className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4" /> Add Payment
           </Button>
-          <Button variant="ghost" onClick={handleWhatsAppReminder} className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20">
-            💬 WhatsApp Reminder
+          <Button 
+            variant="ghost" 
+            onClick={handleWhatsAppReminder} 
+            className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:!bg-transparent"
+            disabled={customer.totalBalance <= 0}
+          >
+            <MessageCircle className="w-4 h-4" /> WhatsApp Reminder
           </Button>
-          <Button variant="ghost" onClick={handleDownloadPDF} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto">
-            📄 Print PDF
+          <Button variant="ghost" onClick={handleDownloadPDF} isLoading={pdfLoading} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto flex items-center gap-2">
+            <FileDown className="w-4 h-4" /> Print PDF
           </Button>
         </div>
       </div>
@@ -130,7 +188,7 @@ const CustomerStatement = () => {
       
       {transactions.length === 0 ? (
         <EmptyState 
-          icon="📝"
+          icon={<FileText />}
           title="No transactions yet"
           description="Click Add Sale to begin tracking history."
           actionLabel="Add Sale"
@@ -182,10 +240,10 @@ const CustomerStatement = () => {
                       </td>
                       <td className="p-4 text-right align-top">
                         <div className={`font-bold ${isSale ? 'text-red-400' : 'text-emerald-400'} print:text-black`}>
-                          {isSale ? '+' : '-'}{tx.amount.toLocaleString()}
+                          {isSale ? '+' : '-'}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-xs text-slate-500 mt-1 print:text-slate-500">
-                          Bal: {tx.balanceAfter.toLocaleString()}
+                          Bal: {tx.balanceAfter != null ? tx.balanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                         </div>
                       </td>
                     </tr>
@@ -194,6 +252,19 @@ const CustomerStatement = () => {
               </tbody>
             </table>
           </div>
+          
+          {hasMore && (
+            <div className="p-4 border-t border-slate-800 flex justify-center bg-slate-900/50 print:hidden">
+              <Button 
+                variant="secondary" 
+                onClick={handleLoadMore} 
+                isLoading={loadingMore}
+                className="w-full sm:w-auto"
+              >
+                Load More Transactions
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -202,14 +273,14 @@ const CustomerStatement = () => {
         isOpen={isSaleModalOpen} 
         onClose={() => setIsSaleModalOpen(false)}
         customerId={id}
-        onSaleAdded={fetchStatement}
+        onSaleAdded={() => fetchStatement(1)}
       />
       
       <AddPaymentModal 
         isOpen={isPaymentModalOpen} 
         onClose={() => setIsPaymentModalOpen(false)}
         customerId={id}
-        onPaymentAdded={fetchStatement}
+        onPaymentAdded={() => fetchStatement(1)}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { toast } from 'react-hot-toast';
+import { Users, Search, Edit2, Trash2 } from 'lucide-react';
 
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -131,9 +132,7 @@ const Customers = () => {
 
       <div className="relative max-w-md">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="w-5 h-5" />
         </div>
         <input
           type="text"
@@ -150,7 +149,7 @@ const Customers = () => {
         </div>
       ) : customers.length === 0 ? (
         <EmptyState 
-          icon="👥"
+          icon={<Users />}
           title={search ? 'No matches found' : 'No customers yet'}
           description={search ? `No customer matched "${search}"` : 'Add your first customer to start tracking khata'}
           actionLabel={search ? '' : 'Add Customer'}
@@ -184,8 +183,8 @@ const Customers = () => {
                       {customer.address && <div className="text-xs text-slate-500 mt-0.5">{customer.address}</div>}
                     </td>
                     <td className="p-4 text-right">
-                      <div className={`font-bold ${customer.balance > 0 ? 'text-emerald-400' : customer.balance < 0 ? 'text-red-400' : 'text-slate-300'}`}>
-                        {Math.abs(customer.balance).toLocaleString()} {customer.balance > 0 ? ' Adv' : customer.balance < 0 ? ' Due' : ''}
+                      <div className={`font-bold ${customer.totalBalance > 0 ? 'text-emerald-400' : customer.totalBalance < 0 ? 'text-red-400' : 'text-slate-300'}`}>
+                        {Math.abs(customer.totalBalance).toLocaleString()} {customer.totalBalance > 0 ? ' Adv' : customer.totalBalance < 0 ? ' Due' : ''}
                       </div>
                     </td>
                     <td className="p-4 text-right space-x-2">
@@ -194,18 +193,14 @@ const Customers = () => {
                         onClick={(e) => openEditModal(e, customer)}
                         title="Edit"
                       >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                        <Edit2 className="w-5 h-5" />
                       </button>
                       <button 
                         className="text-slate-400 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus:opacity-100"
                         onClick={(e) => openDeleteConfirm(e, customer)}
                         title="Delete"
                       >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </td>
                   </tr>
