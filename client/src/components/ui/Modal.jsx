@@ -35,7 +35,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     >
       <div 
         ref={modalRef}
-        className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
       >
         <div className="flex items-center justify-between p-6 border-b border-slate-800">
           <h3 className="text-xl font-bold text-white">{title}</h3>

@@ -19,7 +19,7 @@ const Layout = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 flex-col md:flex-row">
+    <div className="flex h-dvh bg-slate-950 text-slate-100 flex-col md:flex-row">
       {/* Sidebar for Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800">
         <div className="p-6 flex items-center space-x-3">
