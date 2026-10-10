@@ -73,12 +73,22 @@ const CustomerStatement = () => {
   const handleWhatsAppReminder = () => {
     if (!customer) return;
     const balance = customer.totalBalance;
+    
+    // Safety check, though button should be disabled anyway
     if (balance <= 0) {
       toast('Customer has no pending dues.', { icon: <MessageCircle className="w-4 h-4 text-emerald-400" /> });
       return;
     }
-    const message = `Hello ${customer.name},\nThis is a friendly reminder from ShopLedger regarding your pending khata balance of Rs. ${balance.toLocaleString()}.\nPlease arrange for payment at your earliest convenience.\nThank you!`;
+    
+    const shopName = user?.shopName || user?.name || 'ShopLedger';
+    const message = `Hello ${customer.name},\nThis is a friendly reminder from ${shopName} regarding your pending khata balance of Rs. ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\nPlease arrange for payment at your earliest convenience.\nThank you!`;
+    
     const link = getWhatsAppLink(customer.phone, message);
+    if (!link) {
+      toast.error('Invalid or missing phone number for this customer.');
+      return;
+    }
+    
     window.open(link, '_blank');
   };
 
@@ -159,7 +169,12 @@ const CustomerStatement = () => {
           <Button variant="secondary" onClick={() => setIsPaymentModalOpen(true)} className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" /> Add Payment
           </Button>
-          <Button variant="ghost" onClick={handleWhatsAppReminder} className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            onClick={handleWhatsAppReminder} 
+            className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:!bg-transparent"
+            disabled={customer.totalBalance <= 0}
+          >
             <MessageCircle className="w-4 h-4" /> WhatsApp Reminder
           </Button>
           <Button variant="ghost" onClick={handleDownloadPDF} isLoading={pdfLoading} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto flex items-center gap-2">
