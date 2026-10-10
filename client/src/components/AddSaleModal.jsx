@@ -116,7 +116,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Record Sale">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+        <div className="space-y-4 max-h-[50dvh] overflow-y-auto pr-2">
           {items.map((item, index) => (
             <div key={index} className="flex flex-col sm:flex-row gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 relative">
               {items.length > 1 && (
@@ -133,6 +133,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
               
               <div className="flex-1">
                 <Select
+                  id={`product-${index}`}
                   label={index === 0 ? "Select Product" : ""}
                   options={productOptions}
                   value={item.productId}
@@ -142,6 +143,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
               </div>
               <div className="w-full sm:w-28">
                 <Input
+                  id={`qty-${index}`}
                   label={index === 0 ? "Qty" : ""}
                   type="number"
                   min="1"

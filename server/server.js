@@ -17,10 +17,7 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow all origins in development
-    callback(null, true);
-  },
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json());

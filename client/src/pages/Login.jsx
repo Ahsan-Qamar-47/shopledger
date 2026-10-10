@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
+import Button from '../components/ui/Button';
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +32,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-6">
+    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-6">
       <div className="w-full max-w-md space-y-8 bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
         <div className="text-center">
           <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-white text-3xl shadow-lg shadow-indigo-500/30 mx-auto mb-4">
@@ -72,13 +74,13 @@ const Login = () => {
             </div>
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            isLoading={loading}
+            className="w-full mt-4"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+            Sign In
+          </Button>
         </form>
 
         <div className="text-center mt-6">
