@@ -86,12 +86,13 @@ const getCustomerById = async (req, res, next) => {
  */
 const createCustomer = async (req, res, next) => {
   try {
-    const { name, phone, totalBalance = 0 } = req.body;
+    const { name, phone, address, totalBalance = 0 } = req.body;
 
     const customer = await Customer.create({
       userId: req.user._id,
       name,
       phone,
+      address,
       totalBalance
     });
 
@@ -112,7 +113,7 @@ const createCustomer = async (req, res, next) => {
  */
 const updateCustomer = async (req, res, next) => {
   try {
-    const { name, phone, totalBalance } = req.body;
+    const { name, phone, address, totalBalance } = req.body;
 
     const customer = await Customer.findOne({
       _id: req.params.id,
@@ -130,6 +131,7 @@ const updateCustomer = async (req, res, next) => {
 
     if (name !== undefined) customer.name = name;
     if (phone !== undefined) customer.phone = phone;
+    if (address !== undefined) customer.address = address;
     if (totalBalance !== undefined) customer.totalBalance = totalBalance;
 
     await customer.save();

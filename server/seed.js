@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const User = require('./models/User');
 const Customer = require('./models/Customer');
 const Product = require('./models/Product');
+const Transaction = require('./models/Transaction');
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,7 @@ const seedDatabase = async () => {
     const existingDemoUser = await User.findOne({ email: demoUserEmail });
     if (existingDemoUser) {
       console.log('Clearing existing demo user data...');
+      await Transaction.deleteMany({ userId: existingDemoUser._id });
       await Customer.deleteMany({ userId: existingDemoUser._id });
       await Product.deleteMany({ userId: existingDemoUser._id });
       await User.deleteOne({ _id: existingDemoUser._id });
@@ -107,6 +109,84 @@ const seedDatabase = async () => {
 
     const seededProducts = await Product.insertMany(productsData);
     console.log(`Successfully seeded ${seededProducts.length} products (including 2 low-stock items).`);
+
+    // 4. Seed Transactions
+    console.log('Seeding transactions...');
+    const now = new Date();
+    
+    // Customer 1: Muhammad Ali (Balance: 15000)
+    // - Sale: 20000
+    // - Payment: 5000
+    const trans1 = new Transaction({
+      userId: demoUser._id,
+      customerId: seededCustomers[0]._id,
+      type: 'SALE',
+      amount: 20000,
+      date: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      notes: 'Bulk purchase',
+      items: [
+        {
+          productId: seededProducts[0]._id,
+          name: seededProducts[0].name,
+          quantity: 5,
+          price: seededProducts[0].price
+        }
+      ],
+      balanceAfter: 20000
+    });
+    const trans2 = new Transaction({
+      userId: demoUser._id,
+      customerId: seededCustomers[0]._id,
+      type: 'PAYMENT',
+      amount: 5000,
+      date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      notes: 'Partial payment',
+      balanceAfter: 15000
+    });
+
+    // Customer 2: Usman Ghani (Balance: 0)
+    // - Sale: 1500
+    // - Payment: 1500
+    const trans3 = new Transaction({
+      userId: demoUser._id,
+      customerId: seededCustomers[1]._id,
+      type: 'SALE',
+      amount: 1500,
+      date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      items: [
+        {
+          productId: seededProducts[3]._id,
+          name: seededProducts[3].name,
+          quantity: 10,
+          price: seededProducts[3].price
+        }
+      ],
+      balanceAfter: 1500
+    });
+    const trans4 = new Transaction({
+      userId: demoUser._id,
+      customerId: seededCustomers[1]._id,
+      type: 'PAYMENT',
+      amount: 1500,
+      date: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      notes: 'Full settlement',
+      balanceAfter: 0
+    });
+
+    // Customer 3: Sara Ahmed (Balance: -2500)
+    // - Payment: 2500
+    const trans5 = new Transaction({
+      userId: demoUser._id,
+      customerId: seededCustomers[2]._id,
+      type: 'PAYMENT',
+      amount: 2500,
+      date: new Date(), // Today
+      notes: 'Advance payment',
+      balanceAfter: -2500
+    });
+
+    await Transaction.insertMany([trans1, trans2, trans3, trans4, trans5]);
+    console.log(`Successfully seeded 5 transactions.`);
 
     console.log('\n========================================');
     console.log('DATABASE SEEDING COMPLETED SUCCESSFULLY!');

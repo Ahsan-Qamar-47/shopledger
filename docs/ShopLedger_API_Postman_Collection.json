@@ -315,6 +315,68 @@
           }
         }
       ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Create Sale",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"<CUSTOMER_ID>\",\n  \"items\": [\n    {\n      \"productId\": \"<PRODUCT_ID>\",\n      \"quantity\": 2\n    }\n  ],\n  \"notes\": \"Test sale\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/sale",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "sale"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"<CUSTOMER_ID>\",\n  \"amount\": 500,\n  \"notes\": \"Test payment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "payment"]
+            }
+          }
+        },
+        {
+          "name": "Get Customer Statement",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/customer/:customerId?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "customer", ":customerId"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ],
+              "variable": [{ "key": "customerId", "value": "<CUSTOMER_ID>" }]
+            }
+          }
+        }
+      ]
     }
   ]
 }
