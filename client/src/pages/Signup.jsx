@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import Button from '../components/ui/Button';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -115,13 +116,13 @@ const Signup = () => {
             />
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.98] mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
+            isLoading={loading}
+            className="w-full mt-4"
           >
-            {loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
+            Sign Up
+          </Button>
         </form>
 
         <div className="text-center mt-6">

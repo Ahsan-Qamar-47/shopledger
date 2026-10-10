@@ -133,6 +133,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
               
               <div className="flex-1">
                 <Select
+                  id={`product-${index}`}
                   label={index === 0 ? "Select Product" : ""}
                   options={productOptions}
                   value={item.productId}
@@ -142,6 +143,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
               </div>
               <div className="w-full sm:w-28">
                 <Input
+                  id={`qty-${index}`}
                   label={index === 0 ? "Qty" : ""}
                   type="number"
                   min="1"

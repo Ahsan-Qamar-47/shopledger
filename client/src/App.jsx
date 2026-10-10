@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import CustomerStatement from './pages/CustomerStatement';
 import Inventory from './pages/Inventory';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -37,7 +38,7 @@ function App() {
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
