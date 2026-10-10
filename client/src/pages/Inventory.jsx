@@ -15,6 +15,7 @@ const Inventory = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [lowStockFilter, setLowStockFilter] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   // Modal states
@@ -40,12 +41,15 @@ const Inventory = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, lowStockFilter]);
 
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products', {
-        params: { search: debouncedSearch }
+        params: { 
+          search: debouncedSearch,
+          lowStock: lowStockFilter ? 'true' : undefined
+        }
       });
       setProducts(response.data.data || []);
     } catch (error) {
@@ -151,17 +155,29 @@ const Inventory = () => {
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <Search className="w-5 h-5" />
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative w-full max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <Search className="w-5 h-5" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search by name or SKU..."
+            className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          placeholder="Search by name or SKU..."
-          className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        
+        <label className="flex items-center space-x-2 text-slate-300 cursor-pointer self-start sm:self-center">
+          <input 
+            type="checkbox" 
+            className="form-checkbox h-5 w-5 text-indigo-500 rounded border-slate-700 bg-slate-900 focus:ring-indigo-500 focus:ring-offset-slate-950 transition-colors"
+            checked={lowStockFilter}
+            onChange={(e) => setLowStockFilter(e.target.checked)}
+          />
+          <span className="text-sm font-medium">Low stock only</span>
+        </label>
       </div>
 
       {loading ? (

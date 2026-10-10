@@ -18,19 +18,37 @@ const CustomerStatement = () => {
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchStatement();
+    fetchStatement(1);
   }, [id]);
 
-  const fetchStatement = async () => {
+  const fetchStatement = async (pageNum = 1) => {
     try {
-      const response = await api.get(`/transactions/customer/${id}`);
-      setCustomer(response.data.data.customer);
-      setTransactions(response.data.data.transactions || []);
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const response = await api.get(`/transactions/customer/${id}`, {
+        params: { page: pageNum, limit: 10 }
+      });
+      
+      if (pageNum === 1) {
+        setCustomer(response.data.data.customer);
+        setTransactions(response.data.data.transactions || []);
+      } else {
+        setTransactions(prev => [...prev, ...(response.data.data.transactions || [])]);
+      }
+
+      const pagination = response.data.data.pagination;
+      setHasMore(pagination.page < pagination.pages);
+      setPage(pagination.page);
+
     } catch (error) {
       toast.error('Failed to load statement');
       if (error.message === 'Customer not found or inactive') {
@@ -38,6 +56,13 @@ const CustomerStatement = () => {
       }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchStatement(page + 1);
     }
   };
 
@@ -181,10 +206,10 @@ const CustomerStatement = () => {
                       </td>
                       <td className="p-4 text-right align-top">
                         <div className={`font-bold ${isSale ? 'text-red-400' : 'text-emerald-400'} print:text-black`}>
-                          {isSale ? '+' : '-'}{tx.amount.toLocaleString()}
+                          {isSale ? '+' : '-'}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-xs text-slate-500 mt-1 print:text-slate-500">
-                          Bal: {tx.balanceAfter.toLocaleString()}
+                          Bal: {tx.balanceAfter != null ? tx.balanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                         </div>
                       </td>
                     </tr>
@@ -193,6 +218,19 @@ const CustomerStatement = () => {
               </tbody>
             </table>
           </div>
+          
+          {hasMore && (
+            <div className="p-4 border-t border-slate-800 flex justify-center bg-slate-900/50 print:hidden">
+              <Button 
+                variant="secondary" 
+                onClick={handleLoadMore} 
+                isLoading={loadingMore}
+                className="w-full sm:w-auto"
+              >
+                Load More Transactions
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -201,14 +239,14 @@ const CustomerStatement = () => {
         isOpen={isSaleModalOpen} 
         onClose={() => setIsSaleModalOpen(false)}
         customerId={id}
-        onSaleAdded={fetchStatement}
+        onSaleAdded={() => fetchStatement(1)}
       />
       
       <AddPaymentModal 
         isOpen={isPaymentModalOpen} 
         onClose={() => setIsPaymentModalOpen(false)}
         customerId={id}
-        onPaymentAdded={fetchStatement}
+        onPaymentAdded={() => fetchStatement(1)}
       />
     </div>
   );

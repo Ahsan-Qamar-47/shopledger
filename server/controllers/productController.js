@@ -31,7 +31,7 @@ const getLowStockProducts = async (req, res, next) => {
  */
 const getProducts = async (req, res, next) => {
   try {
-    const { search, limit = 50, page = 1 } = req.query;
+    const { search, limit = 50, page = 1, lowStock } = req.query;
 
     const parsedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 50, 100));
     const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
@@ -49,6 +49,10 @@ const getProducts = async (req, res, next) => {
         { name: searchRegex },
         { sku: searchRegex }
       ];
+    }
+
+    if (lowStock === 'true') {
+      query.$expr = { $lte: ['$stockQuantity', '$lowStockThreshold'] };
     }
 
     const total = await Product.countDocuments(query);
