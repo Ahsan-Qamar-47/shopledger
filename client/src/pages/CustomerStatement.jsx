@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { getWhatsAppLink } from '../utils/phone';
+import { AlertTriangle, FileText, ArrowLeft, CreditCard, MessageCircle, FileDown } from 'lucide-react';
 
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
@@ -44,7 +45,7 @@ const CustomerStatement = () => {
     if (!customer) return;
     const balance = customer.totalBalance;
     if (balance <= 0) {
-      toast('Customer has no pending dues.', { icon: 'ℹ️' });
+      toast('Customer has no pending dues.', { icon: <MessageCircle className="w-4 h-4 text-emerald-400" /> });
       return;
     }
     const message = `Hello ${customer.name},\nThis is a friendly reminder from ShopLedger regarding your pending khata balance of Rs. ${balance.toLocaleString()}.\nPlease arrange for payment at your earliest convenience.\nThank you!`;
@@ -68,7 +69,7 @@ const CustomerStatement = () => {
   if (!customer) {
     return (
       <EmptyState 
-        icon="⚠️"
+        icon={<AlertTriangle />}
         title="Customer Not Found"
         description="The customer you are looking for does not exist or has been deleted."
         actionLabel="Back to Customers"
@@ -87,9 +88,7 @@ const CustomerStatement = () => {
               onClick={() => navigate('/customers')}
               className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">{customer.name}</h2>
@@ -113,14 +112,14 @@ const CustomerStatement = () => {
           <Button variant="primary" onClick={() => setIsSaleModalOpen(true)}>
             + Add Sale
           </Button>
-          <Button variant="secondary" onClick={() => setIsPaymentModalOpen(true)}>
-            💳 Add Payment
+          <Button variant="secondary" onClick={() => setIsPaymentModalOpen(true)} className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4" /> Add Payment
           </Button>
-          <Button variant="ghost" onClick={handleWhatsAppReminder} className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20">
-            💬 WhatsApp Reminder
+          <Button variant="ghost" onClick={handleWhatsAppReminder} className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2">
+            <MessageCircle className="w-4 h-4" /> WhatsApp Reminder
           </Button>
-          <Button variant="ghost" onClick={handleDownloadPDF} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto">
-            📄 Print PDF
+          <Button variant="ghost" onClick={handleDownloadPDF} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto flex items-center gap-2">
+            <FileDown className="w-4 h-4" /> Print PDF
           </Button>
         </div>
       </div>
@@ -130,7 +129,7 @@ const CustomerStatement = () => {
       
       {transactions.length === 0 ? (
         <EmptyState 
-          icon="📝"
+          icon={<FileText />}
           title="No transactions yet"
           description="Click Add Sale to begin tracking history."
           actionLabel="Add Sale"

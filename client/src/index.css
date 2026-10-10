@@ -1,7 +1,27 @@
 @import "tailwindcss";
 
+@theme {
+  /* Override default slate to our new blue palette */
+  --color-slate-950: #010736;
+  --color-slate-900: #0d1c42;
+  --color-slate-800: #22396f;
+  --color-slate-700: #1a2a54; 
+  --color-slate-500: #556c9a;
+  --color-slate-400: #8b9fc6;
+  --color-slate-300: #b5c4e0;
+  --color-slate-100: #fcf1d0;
+  
+  /* Override indigo to match our theme accents better */
+  --color-indigo-600: #22396f;
+  --color-indigo-500: #2a478b;
+  --color-indigo-400: #4263b3;
+  --color-indigo-300: #6a88d1;
+  
+  --color-white: #fcf1d0;
+}
+
 @layer base {
   body {
-    @apply bg-slate-900 text-slate-100 antialiased min-h-screen font-sans;
+    @apply bg-slate-950 text-slate-100 antialiased min-h-screen font-sans;
   }
 }
