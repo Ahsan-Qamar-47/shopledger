@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { getWhatsAppLink } from '../utils/phone';
+import { generateStatementPdf } from '../utils/generateStatementPdf';
 import { AlertTriangle, FileText, ArrowLeft, CreditCard, MessageCircle, FileDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
@@ -14,6 +16,7 @@ import AddPaymentModal from '../components/AddPaymentModal';
 const CustomerStatement = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
@@ -21,6 +24,7 @@ const CustomerStatement = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -78,9 +82,24 @@ const CustomerStatement = () => {
     window.open(link, '_blank');
   };
 
-  const handleDownloadPDF = () => {
-    // Basic fallback for now - can be expanded later with jsPDF
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!customer) return;
+    
+    setPdfLoading(true);
+    try {
+      // Fetch ALL transactions for the PDF (limit=1000 to cover full statement)
+      const response = await api.get(`/transactions/customer/${id}`, {
+        params: { page: 1, limit: 1000 }
+      });
+      const allTransactions = response.data.data.transactions || [];
+      
+      generateStatementPdf(customer, allTransactions, user);
+      toast.success('PDF generated successfully');
+    } catch (error) {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   if (loading) {
@@ -143,7 +162,7 @@ const CustomerStatement = () => {
           <Button variant="ghost" onClick={handleWhatsAppReminder} className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2">
             <MessageCircle className="w-4 h-4" /> WhatsApp Reminder
           </Button>
-          <Button variant="ghost" onClick={handleDownloadPDF} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto flex items-center gap-2">
+          <Button variant="ghost" onClick={handleDownloadPDF} isLoading={pdfLoading} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto flex items-center gap-2">
             <FileDown className="w-4 h-4" /> Print PDF
           </Button>
         </div>
