@@ -13,9 +13,11 @@ router.post(
   '/sale',
   [
     body('customerId').isMongoId().withMessage('Invalid customer ID format'),
-    body('items').isArray({ min: 1 }).withMessage('Items array is required and cannot be empty'),
-    body('items.*.productId').isMongoId().withMessage('Invalid product ID format in items'),
-    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be an integer greater than 0'),
+    body('isInventorySale').optional().isBoolean().withMessage('isInventorySale must be a boolean'),
+    body('amount').optional().isFloat({ gt: 0 }).withMessage('Amount must be greater than 0'),
+    body('items').optional().isArray().withMessage('Items must be an array'),
+    body('items.*.productId').optional().isMongoId().withMessage('Invalid product ID format in items'),
+    body('items.*.quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be an integer greater than 0'),
     body('date').optional().isISO8601().toDate().withMessage('Invalid date format'),
     body('notes').optional().trim().isString().withMessage('Notes must be a string')
   ],

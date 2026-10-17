@@ -10,35 +10,35 @@ const Product = require('../models/Product');
  */
 const createSale = async (req, res, next) => {
   const session = await mongoose.startSession();
+  session.startTransaction();
   
   try {
-    let transaction;
+    const { customerId, items, amount, isInventorySale = true, date, notes } = req.body;
+    const userId = req.user._id;
 
-    await session.withTransaction(async () => {
-      const { customerId, items, date, notes } = req.body;
-      const userId = req.user._id;
+    // 1. Verify customer belongs to user and is active
+    const customer = await Customer.findOne({
+      _id: customerId,
+      userId,
+      isActive: true
+    }).session(session);
 
-      // 1. Verify customer belongs to user and is active
-      const customer = await Customer.findOne({
-        _id: customerId,
-        userId,
-        isActive: true
-      }).session(session);
+    if (!customer) {
+      throw new Error('Customer not found or inactive');
+    }
 
-      if (!customer) {
-        throw new Error('Customer not found or inactive');
-      }
+    let totalAmount = 0;
+    let profitAmount = 0;
+    const transactionItems = [];
 
-      // 2. Fetch products and calculate total amount
-      let totalAmount = 0;
-      const transactionItems = [];
-
+    // 2. Stock deduction and amount/profit calculation within session
+    if (isInventorySale) {
       if (!items || !Array.isArray(items) || items.length === 0) {
-        throw new Error('Items array cannot be empty');
+        throw new Error('Items array cannot be empty for inventory sales');
       }
 
       for (const item of items) {
-        // Fetch product from DB
+        // Fetch product from DB within session
         const product = await Product.findOne({
           _id: item.productId,
           userId,
@@ -49,8 +49,7 @@ const createSale = async (req, res, next) => {
           throw new Error(`Product with ID ${item.productId} not found or inactive`);
         }
 
-        // Check stock and deduct (safe stock deduction)
-        // Conditional update so it never goes negative
+        // Execute stock deduction within session
         const updatedProduct = await Product.findOneAndUpdate(
           {
             _id: product._id,
@@ -66,55 +65,74 @@ const createSale = async (req, res, next) => {
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
 
-        // Snapshot price and name
-        const itemTotal = product.price * item.quantity;
+        // Snapshot price, calculate totals and profit
+        const itemTotal = (product.price || 0) * item.quantity;
+        const itemCost = (product.costPrice || 0) * item.quantity;
         totalAmount += itemTotal;
+        profitAmount += (itemTotal - itemCost);
 
         transactionItems.push({
           productId: product._id,
           name: product.name,
           quantity: item.quantity,
-          price: product.price // snapshot from DB
+          price: product.price
         });
       }
+    } else {
+      // Non-inventory sale: items array is optional
+      totalAmount = Number(amount) || 0;
+      if (totalAmount <= 0) {
+        throw new Error('Sale amount must be greater than zero');
+      }
+      profitAmount = totalAmount;
+      if (items && Array.isArray(items)) {
+        transactionItems.push(...items);
+      }
+    }
 
-      // 3. Increment customer totalBalance
-      customer.totalBalance += totalAmount;
-      await customer.save({ session });
+    // 3. Customer balance update within session
+    customer.totalBalance += totalAmount;
+    await customer.save({ session });
 
-      // 4. Create Transaction record
-      transaction = new Transaction({
-        userId,
-        customerId,
-        type: 'SALE',
-        amount: totalAmount,
-        date: date || Date.now(),
-        notes,
-        items: transactionItems,
-        balanceAfter: customer.totalBalance
-      });
+    // 4. Transaction creation within the session array
+    const [transaction] = await Transaction.create(
+      [
+        {
+          userId,
+          customerId,
+          type: 'SALE',
+          amount: totalAmount,
+          date: date || Date.now(),
+          notes: notes ? notes.trim() : '',
+          isInventorySale,
+          profitAmount,
+          items: transactionItems,
+          balanceAfter: customer.totalBalance
+        }
+      ],
+      { session }
+    );
 
-      await transaction.save({ session });
-    });
-
+    // 5. Commit transaction on success
+    await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Sale transaction completed successfully',
       data: transaction
     });
 
   } catch (error) {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
+    // 6. Abort transaction on failure
+    await session.abortTransaction();
     session.endSession();
     
     // Check if error is thrown manually for bad request
     if (
       error.message === 'Customer not found or inactive' ||
-      error.message === 'Items array cannot be empty' ||
+      error.message === 'Items array cannot be empty for inventory sales' ||
+      error.message === 'Sale amount must be greater than zero' ||
       error.message.includes('not found or inactive') ||
       error.message.includes('Insufficient stock for product')
     ) {
