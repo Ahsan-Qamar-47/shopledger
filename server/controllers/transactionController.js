@@ -27,12 +27,14 @@ const createSale = async (req, res, next) => {
       throw new Error('Customer not found or inactive');
     }
 
+    const isInventory = !(isInventorySale === false || isInventorySale === 'false');
+
     let totalAmount = 0;
     let profitAmount = 0;
     const transactionItems = [];
 
     // 2. Stock deduction and amount/profit calculation within session
-    if (isInventorySale) {
+    if (isInventory) {
       if (!items || !Array.isArray(items) || items.length === 0) {
         throw new Error('Items array cannot be empty for inventory sales');
       }
@@ -79,10 +81,11 @@ const createSale = async (req, res, next) => {
         });
       }
     } else {
-      // Non-inventory sale: items array is optional
+      // Service Sale (isInventorySale: false)
+      // Bypass stock deduction entirely, set profitAmount equal to amount (service revenue)
       totalAmount = Number(amount) || 0;
       if (totalAmount <= 0) {
-        throw new Error('Sale amount must be greater than zero');
+        throw new Error('Sale amount must be greater than zero for service sales');
       }
       profitAmount = totalAmount;
       if (items && Array.isArray(items)) {
@@ -104,7 +107,7 @@ const createSale = async (req, res, next) => {
           amount: totalAmount,
           date: date || Date.now(),
           notes: notes ? notes.trim() : '',
-          isInventorySale,
+          isInventorySale: isInventory,
           profitAmount,
           items: transactionItems,
           balanceAfter: customer.totalBalance
