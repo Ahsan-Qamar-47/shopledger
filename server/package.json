@@ -12,6 +12,7 @@
     "test:week2day2": "node scripts/testWeek2Day2.js",
     "test:week2day3-4": "node scripts/testWeek2Day3_4.js",
     "test:week2day5": "node scripts/testWeek2Day5.js",
+    "test:week3day5": "node scripts/testWeek3Day5.js",
     "test": "node scripts/testWeek1Endpoints.js"
   },
   "keywords": [],

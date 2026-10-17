@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
+const { getTargetUserIds } = require('../utils/authHelper');
 
 /**
  * @desc    Create a sale transaction
@@ -14,12 +15,12 @@ const createSale = async (req, res, next) => {
   
   try {
     const { customerId, items, amount, isInventorySale = true, date, notes } = req.body;
-    const userId = req.user._id;
+    const targetUserIds = await getTargetUserIds(req.user);
 
-    // 1. Verify customer belongs to user and is active
+    // 1. Verify customer belongs to user/shop and is active
     const customer = await Customer.findOne({
       _id: customerId,
-      userId,
+      userId: { $in: targetUserIds },
       isActive: true
     }).session(session);
 
@@ -43,7 +44,7 @@ const createSale = async (req, res, next) => {
         // Fetch product from DB within session
         const product = await Product.findOne({
           _id: item.productId,
-          userId,
+          userId: { $in: targetUserIds },
           isActive: true
         }).session(session);
 
@@ -101,7 +102,7 @@ const createSale = async (req, res, next) => {
     const [transaction] = await Transaction.create(
       [
         {
-          userId,
+          userId: customer.userId,
           customerId,
           type: 'SALE',
           amount: totalAmount,
@@ -162,17 +163,17 @@ const createPayment = async (req, res, next) => {
 
     await session.withTransaction(async () => {
       const { customerId, amount, date, notes } = req.body;
-      const userId = req.user._id;
+      const targetUserIds = await getTargetUserIds(req.user);
 
       // 1. Validate amount
       if (!amount || amount <= 0) {
         throw new Error('Payment amount must be greater than 0');
       }
 
-      // 2. Verify customer belongs to user
+      // 2. Verify customer belongs to user/shop
       const customer = await Customer.findOne({
         _id: customerId,
-        userId,
+        userId: { $in: targetUserIds },
         isActive: true
       }).session(session);
 
@@ -186,7 +187,7 @@ const createPayment = async (req, res, next) => {
 
       // 4. Create Transaction record
       transaction = new Transaction({
-        userId,
+        userId: customer.userId,
         customerId,
         type: 'PAYMENT',
         amount,
@@ -234,15 +235,15 @@ const createPayment = async (req, res, next) => {
 const getCustomerStatement = async (req, res, next) => {
   try {
     const { customerId } = req.params;
-    const userId = req.user._id;
+    const targetUserIds = await getTargetUserIds(req.user);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // 1. Verify customer belongs to user
+    // 1. Verify customer belongs to user/shop
     const customer = await Customer.findOne({
       _id: customerId,
-      userId,
+      userId: { $in: targetUserIds },
       isActive: true
     }).select('name phone totalBalance');
 
@@ -256,7 +257,7 @@ const getCustomerStatement = async (req, res, next) => {
     // 2. Get transactions with pagination
     const transactions = await Transaction.find({
       customerId,
-      userId
+      userId: { $in: targetUserIds }
     })
       .sort({ date: -1 }) // Newest first
       .skip(skip)
@@ -265,7 +266,7 @@ const getCustomerStatement = async (req, res, next) => {
     // 3. Get total count for pagination metadata
     const total = await Transaction.countDocuments({
       customerId,
-      userId
+      userId: { $in: targetUserIds }
     });
 
     res.status(200).json({

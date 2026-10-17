@@ -1,5 +1,6 @@
 const Product = require('../models/Product');
 const { escapeRegex } = require('../utils/regex');
+const { getTargetUserIds } = require('../utils/authHelper');
 
 /**
  * @desc    Get all low stock products (stockQuantity <= lowStockThreshold)
@@ -8,11 +9,19 @@ const { escapeRegex } = require('../utils/regex');
  */
 const getLowStockProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({
-      userId: req.user._id,
+    const targetUserIds = await getTargetUserIds(req.user);
+    const query = {
+      userId: { $in: targetUserIds },
       isActive: true,
       $expr: { $lte: ['$stockQuantity', '$lowStockThreshold'] }
-    }).sort({ stockQuantity: 1 });
+    };
+
+    let mongoQuery = Product.find(query).sort({ stockQuantity: 1 });
+    if (req.user.role === 'Cashier') {
+      mongoQuery = mongoQuery.select('-costPrice');
+    }
+
+    const products = await mongoQuery;
 
     res.status(200).json({
       success: true,
@@ -37,8 +46,10 @@ const getProducts = async (req, res, next) => {
     const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
     const skip = (parsedPage - 1) * parsedLimit;
 
+    const targetUserIds = await getTargetUserIds(req.user);
+
     const query = {
-      userId: req.user._id,
+      userId: { $in: targetUserIds },
       isActive: true
     };
 
@@ -56,10 +67,16 @@ const getProducts = async (req, res, next) => {
     }
 
     const total = await Product.countDocuments(query);
-    const products = await Product.find(query)
+    let mongoQuery = Product.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parsedLimit);
+
+    if (req.user.role === 'Cashier') {
+      mongoQuery = mongoQuery.select('-costPrice');
+    }
+
+    const products = await mongoQuery;
 
     res.status(200).json({
       success: true,
@@ -81,11 +98,18 @@ const getProducts = async (req, res, next) => {
  */
 const getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findOne({
+    const targetUserIds = await getTargetUserIds(req.user);
+    let query = Product.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      userId: { $in: targetUserIds },
       isActive: true
     });
+
+    if (req.user.role === 'Cashier') {
+      query = query.select('-costPrice');
+    }
+
+    const product = await query;
 
     if (!product) {
       return res.status(404).json({
