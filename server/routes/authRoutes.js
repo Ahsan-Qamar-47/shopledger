@@ -14,6 +14,7 @@ router.post(
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('email').trim().isEmail().withMessage('Please provide a valid email address'),
     body('shopName').trim().notEmpty().withMessage('Shop name is required'),
+    body('role').optional().isIn(['Owner', 'Cashier']).withMessage('Role must be either Owner or Cashier'),
     body('password')
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters long')

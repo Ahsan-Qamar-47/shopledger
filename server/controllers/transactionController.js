@@ -60,7 +60,7 @@ const createSale = async (req, res, next) => {
           {
             $inc: { stockQuantity: -item.quantity }
           },
-          { new: true, session }
+          { returnDocument: 'after', session }
         );
 
         if (!updatedProduct) {

@@ -7,7 +7,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node seed.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:week1": "node scripts/testWeek1Endpoints.js",
+    "test": "node scripts/testWeek1Endpoints.js"
   },
   "keywords": [],
   "author": "",

@@ -7,7 +7,7 @@ const User = require('../models/User');
  */
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, shopName } = req.body;
+    const { name, email, password, shopName, role } = req.body;
 
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -26,7 +26,8 @@ const register = async (req, res, next) => {
       name,
       email: normalizedEmail,
       passwordHash: password,
-      shopName
+      shopName,
+      ...(role ? { role } : {})
     });
 
     // Generate token
@@ -40,7 +41,8 @@ const register = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        shopName: user.shopName
+        shopName: user.shopName,
+        role: user.role
       }
     });
   } catch (error) {
@@ -90,7 +92,8 @@ const login = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        shopName: user.shopName
+        shopName: user.shopName,
+        role: user.role
       }
     });
   } catch (error) {
@@ -111,7 +114,8 @@ const getMe = async (req, res, next) => {
         id: req.user._id,
         name: req.user.name,
         email: req.user.email,
-        shopName: req.user.shopName
+        shopName: req.user.shopName,
+        role: req.user.role
       }
     });
   } catch (error) {
