@@ -16,8 +16,24 @@ const app = express();
 
 // Middleware
 app.use(helmet());
+// Allowed origins for CORS (supports comma-separated values in CLIENT_URL, localhost, and Vercel domains)
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+  : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      allowedOrigins.includes('*') ||
+      /^http:\/\/localhost:\d+$/.test(origin) ||
+      /^https:\/\/.*\.vercel\.app$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -49,14 +65,17 @@ app.use('/api/register-cashier', (req, res, next) => {
   authRoutes(req, res, next);
 });
 
-app.get('/api/health', (req, res) => {
+// Health check endpoint (for Render / Vercel uptime monitoring and zero-downtime deploys)
+const healthHandler = (req, res) => {
   res.status(200).json({
     success: true,
     message: 'ShopLedger Backend Service is running healthy',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
-});
+};
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
 // 404 Route Handler
 app.use(notFound);
