@@ -37,6 +37,7 @@ const register = async (req, res, next) => {
       success: true,
       message: 'User registered successfully',
       token,
+      role: user.role,
       user: {
         id: user._id,
         name: user.name,
@@ -88,6 +89,7 @@ const login = async (req, res, next) => {
       success: true,
       message: 'Logged in successfully',
       token,
+      role: user.role,
       user: {
         id: user._id,
         name: user.name,
@@ -159,6 +161,7 @@ const registerCashier = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Cashier registered successfully',
+      role: cashier.role,
       data: {
         id: cashier._id,
         name: cashier.name,

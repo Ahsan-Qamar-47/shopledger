@@ -37,15 +37,16 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { token: newToken, user: newUser } = response.data;
+      const { token: newToken, user: newUser, role } = response.data;
+      const userWithRole = { ...newUser, role: newUser?.role || role || 'Cashier' };
       
       setToken(newToken);
-      setUser(newUser);
+      setUser(userWithRole);
       
       localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem('user', JSON.stringify(userWithRole));
       
-      return { success: true };
+      return { success: true, role: userWithRole.role };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -54,17 +55,30 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
-      const { token: newToken, user: newUser } = response.data;
+      const { token: newToken, user: newUser, role } = response.data;
+      const userWithRole = { ...newUser, role: newUser?.role || role || 'Cashier' };
       
       setToken(newToken);
-      setUser(newUser);
+      setUser(userWithRole);
       
       localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem('user', JSON.stringify(userWithRole));
       
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
+    }
+  };
+
+  const registerCashier = async (cashierData) => {
+    try {
+      const response = await api.post('/auth/register-cashier', cashierData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message
+      };
     }
   };
 
@@ -81,6 +95,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    registerCashier,
     logout
   };
 

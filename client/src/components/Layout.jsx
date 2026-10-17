@@ -65,7 +65,7 @@ const Layout = () => {
             </div>
             <div className="overflow-hidden">
               <b className="truncate">{shopName}</b>
-              <small>Shop owner</small>
+              <small>{user?.role === 'Cashier' ? 'Cashier' : 'Shop Owner'}</small>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const { register, login, getMe, registerCashier } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const { verifyToken, protect } = require('../middleware/auth');
 const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { loginLimiter } = require('../middleware/rateLimiter');
@@ -24,10 +24,10 @@ router.post(
   register
 );
 
-// @route   POST /api/auth/register-cashier (Owner only)
+// @route   POST /api/auth/register-cashier (Protected by verifyToken and checkRole('Owner'))
 router.post(
   '/register-cashier',
-  protect,
+  verifyToken,
   checkRole('Owner'),
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
