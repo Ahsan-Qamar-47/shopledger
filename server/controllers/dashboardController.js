@@ -151,7 +151,7 @@ exports.getDashboardStats = async (req, res, next) => {
             userId: userId,
             type: 'SALE',
             date: {
-              $gte: now.clone().subtract(6, 'days').startOf('day').toDate(),
+              $gte: now.clone().subtract(29, 'days').startOf('day').toDate(),
               $lte: endOfDay
             }
           }
@@ -159,7 +159,8 @@ exports.getDashboardStats = async (req, res, next) => {
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: timezone } },
-            sales: { $sum: '$amount' }
+            sales: { $sum: '$amount' },
+            grossProfit: { $sum: '$profitAmount' }
           }
         },
         {
@@ -171,22 +172,33 @@ exports.getDashboardStats = async (req, res, next) => {
     const totalReceivables = receivablesAgg.length > 0 ? receivablesAgg[0].totalReceivables : 0;
     const lowStockItemCount = lowStockItems.length;
 
-    // Format salesLast7Days for chart ensuring all 7 consecutive days are represented
-    const salesLast7DaysMap = new Map();
+    // Format 30-day trend and 7-day sales for charts ensuring consecutive days
+    const trendMap = new Map();
     salesLast7DaysAgg.forEach((item) => {
-      salesLast7DaysMap.set(item._id, item.sales);
+      trendMap.set(item._id, {
+        sales: item.sales || 0,
+        grossProfit: item.grossProfit || 0
+      });
     });
 
-    const salesLast7Days = [];
-    for (let i = 6; i >= 0; i--) {
+    const profitTrend30Days = [];
+    for (let i = 29; i >= 0; i--) {
       const dateStr = now.clone().subtract(i, 'days').format('YYYY-MM-DD');
       const displayDate = now.clone().subtract(i, 'days').format('MMM DD');
-      salesLast7Days.push({
+      const dataPoint = trendMap.get(dateStr) || { sales: 0, grossProfit: 0 };
+      profitTrend30Days.push({
         date: dateStr,
         displayDate: displayDate,
-        sales: salesLast7DaysMap.get(dateStr) || 0
+        sales: dataPoint.sales,
+        grossProfit: dataPoint.grossProfit
       });
     }
+
+    const salesLast7Days = profitTrend30Days.slice(-7).map((d) => ({
+      date: d.date,
+      displayDate: d.displayDate,
+      sales: d.sales
+    }));
 
     res.status(200).json({
       success: true,
@@ -216,7 +228,8 @@ exports.getDashboardStats = async (req, res, next) => {
         topDebtors,
         lowStockItems,
         lowStockItemCount,
-        salesLast7Days
+        salesLast7Days,
+        profitTrend30Days
       }
     });
   } catch (error) {

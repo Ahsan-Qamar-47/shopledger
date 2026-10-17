@@ -15,6 +15,7 @@ import {
   ArrowDownRight 
 } from 'lucide-react';
 import { fmt, colorFor, initials } from '../utils/formatters';
+import GrossProfitChart from '../components/GrossProfitChart';
 
 const Dashboard = () => {
   const { user, isOwner } = useAuth();
@@ -339,47 +340,27 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Sales Trend Chart Card */}
+      {/* 30-Day Gross Profit Trend Chart Card (Recharts) */}
       <div className="card mb-4" style={{ marginBottom: '16px' }}>
         <div className="chart-head">
           <div>
-            <h3>Sales &amp; Activity Trend</h3>
-            <small>Last 7 days performance comparison</small>
+            <h3>Gross Profit &amp; Sales Trend</h3>
+            <small>Last 30 days daily performance breakdown</small>
           </div>
           <div className="legend">
             <span>
               <i style={{ background: 'var(--brand2)' }} />
-              Sales Volume
+              Gross Profit
             </span>
             <span>
               <i style={{ background: 'var(--gold)' }} />
-              Profitability
+              Total Sales
             </span>
           </div>
         </div>
 
-        <div className="bars pt-4">
-          {salesDays.map((d, i) => {
-            const isToday = i === salesDays.length - 1;
-            const heightPct = Math.max(8, ((d.sales || 0) / maxSale) * 100);
-            return (
-              <div
-                key={d.date || i}
-                className={`bar ${isToday ? 'today' : ''}`}
-                title={`${d.displayDate}: ${fmt(d.sales || 0)}`}
-              >
-                <i
-                  style={{
-                    height: `${heightPct}%`,
-                    animationDelay: `${i * 60}ms`
-                  }}
-                />
-                <span>
-                  {isToday ? 'Today' : d.displayDate?.split(' ')[0] || d.displayDate}
-                </span>
-              </div>
-            );
-          })}
+        <div className="pt-2">
+          <GrossProfitChart data={stats?.profitTrend30Days || []} />
         </div>
       </div>
 
