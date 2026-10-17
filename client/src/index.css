@@ -2043,3 +2043,19 @@ div.ccard:hover {
 .tx.svc .amt {
   color: var(--danger);
 }
+
+/* Mobile responsiveness enhancements for cards and modals */
+@media (max-width: 480px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+  .stat.hero .val {
+    font-size: 1.85rem;
+  }
+  .catgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .xsum {
+    grid-template-columns: 1fr;
+  }
+}

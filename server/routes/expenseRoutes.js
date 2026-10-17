@@ -29,8 +29,8 @@ router.post(
     body('amount')
       .notEmpty()
       .withMessage('Expense amount is required')
-      .isFloat({ min: 0 })
-      .withMessage('Expense amount must be a positive number'),
+      .isFloat({ min: 0.01 })
+      .withMessage('Expense amount must be a positive number greater than 0'),
     body('date')
       .optional()
       .isISO8601()

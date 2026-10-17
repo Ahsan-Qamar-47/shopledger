@@ -14,7 +14,16 @@ router.post(
   [
     body('customerId').isMongoId().withMessage('Invalid customer ID format'),
     body('isInventorySale').optional().isBoolean().withMessage('isInventorySale must be a boolean'),
-    body('amount').optional().isFloat({ gt: 0 }).withMessage('Amount must be greater than 0'),
+    body('amount')
+      .optional()
+      .isFloat({ gt: 0 })
+      .withMessage('Amount must be greater than 0'),
+    body('amount')
+      .if((value, { req }) => req.body.isInventorySale === false || req.body.isInventorySale === 'false')
+      .notEmpty()
+      .withMessage('Amount is required for service sales')
+      .isFloat({ gt: 0 })
+      .withMessage('Service sale amount must be greater than 0'),
     body('items').optional().isArray().withMessage('Items must be an array'),
     body('items.*.productId').optional().isMongoId().withMessage('Invalid product ID format in items'),
     body('items.*.quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be an integer greater than 0'),
