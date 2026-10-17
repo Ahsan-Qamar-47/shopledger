@@ -15,6 +15,7 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import CustomerStatement from './pages/CustomerStatement';
 import Inventory from './pages/Inventory';
+import Expenses from './pages/Expenses';
 import Cashiers from './pages/Cashiers';
 import NotFound from './pages/NotFound';
 
@@ -50,6 +51,7 @@ function App() {
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/customers/:id" element={<CustomerStatement />} />
                 <Route path="/inventory" element={<Inventory />} />
+                <Route path="/expenses" element={<Expenses />} />
                 <Route path="/cashiers" element={<Cashiers />} />
               </Route>
             </Route>
