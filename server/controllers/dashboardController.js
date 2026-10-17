@@ -2,6 +2,7 @@ const Customer = require('../models/Customer');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const Expense = require('../models/Expense');
+const User = require('../models/User');
 const moment = require('moment-timezone');
 
 /**
@@ -216,6 +217,77 @@ exports.getDashboardStats = async (req, res, next) => {
         lowStockItems,
         lowStockItemCount,
         salesLast7Days
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get cashier operational dashboard statistics (no financial profit/expense data)
+ * @route   GET /api/dashboard/cashier-stats
+ * @access  Private (Cashier & Owner)
+ */
+exports.getCashierDashboardStats = async (req, res, next) => {
+  try {
+    let targetUserIds = [req.user._id];
+
+    // If Cashier belongs to a shop with an Owner, include Owner's operational entities
+    if (req.user.role === 'Cashier' && req.user.shopName) {
+      const owner = await User.findOne({
+        shopName: req.user.shopName,
+        role: 'Owner'
+      });
+      if (owner) {
+        targetUserIds.push(owner._id);
+      }
+    }
+
+    const [receivablesAgg, topDebtors, lowStockItems] = await Promise.all([
+      Customer.aggregate([
+        {
+          $match: {
+            userId: { $in: targetUserIds },
+            totalBalance: { $gt: 0 },
+            isActive: true
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalReceivables: { $sum: '$totalBalance' }
+          }
+        }
+      ]),
+      Customer.find({
+        userId: { $in: targetUserIds },
+        totalBalance: { $gt: 0 },
+        isActive: true
+      })
+        .sort({ totalBalance: -1 })
+        .limit(5)
+        .select('name phone totalBalance'),
+      Product.find({
+        userId: { $in: targetUserIds },
+        isActive: true,
+        $expr: { $lte: ['$stockQuantity', '$lowStockThreshold'] }
+      })
+        .select('name sku stockQuantity lowStockThreshold price')
+        .sort({ stockQuantity: 1 })
+    ]);
+
+    const totalReceivables = receivablesAgg.length > 0 ? receivablesAgg[0].totalReceivables : 0;
+    const lowStockItemCount = lowStockItems.length;
+
+    // Return strictly operational data (excluding all financial profit/expense data)
+    res.status(200).json({
+      success: true,
+      data: {
+        totalReceivables,
+        lowStockItems,
+        lowStockItemCount,
+        topDebtors
       }
     });
   } catch (error) {

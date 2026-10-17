@@ -15,8 +15,9 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        const statsEndpoint = user?.role === 'Cashier' ? '/dashboard/cashier-stats' : '/dashboard/stats';
         const [statsRes, custRes] = await Promise.all([
-          api.get('/dashboard/stats'),
+          api.get(statsEndpoint),
           api.get('/customers').catch(() => ({ data: { data: [] } }))
         ]);
 
@@ -34,7 +35,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [user?.role]);
 
   if (loading) {
     return (
@@ -83,85 +84,99 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Business Intelligence & Profit Overview (Day 3-4 Aggregation Pipeline) */}
-      <div className="card mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--line)]">
-          <div>
-            <h2 className="text-base md:text-lg font-bold">Business Intelligence & Profitability</h2>
-            <p className="text-xs text-[var(--muted)]">Aggregated sales, gross profit, expenses, and net earnings</p>
-          </div>
-          <div className="flex items-center gap-1 p-1 bg-[var(--surface2)] rounded-xl border border-[var(--line)] self-start sm:self-auto">
-            <button
-              type="button"
-              className={`btn btn-sm ${selectedRange === 'today' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setSelectedRange('today')}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${selectedRange === 'week' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setSelectedRange('week')}
-            >
-              This Week
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${selectedRange === 'month' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setSelectedRange('month')}
-            >
-              This Month
-            </button>
+      {/* Business Intelligence & Profit Overview (Owner only) vs Operational Terminal (Cashier) */}
+      {user?.role === 'Cashier' ? (
+        <div className="card mb-6 bg-[var(--surface2)] border border-[var(--line)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--ok-bg)] text-[var(--ok)] flex items-center justify-center flex-none">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold">Operational Terminal (Cashier)</h2>
+              <p className="text-xs text-[var(--muted)]">Displaying active customer accounts, credit balances, and stock inventory</p>
+            </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
-            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
-              <TrendingUp className="w-4 h-4 text-[var(--brand2)]" /> Total Sales
+      ) : (
+        <div className="card mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--line)]">
+            <div>
+              <h2 className="text-base md:text-lg font-bold">Business Intelligence & Profitability</h2>
+              <p className="text-xs text-[var(--muted)]">Aggregated sales, gross profit, expenses, and net earnings</p>
             </div>
-            <div className="text-xl md:text-2xl font-bold font-serif text-[var(--ink)]">
-              {formatCurrency(currentMetrics.totalSales)}
+            <div className="flex items-center gap-1 p-1 bg-[var(--surface2)] rounded-xl border border-[var(--line)] self-start sm:self-auto">
+              <button
+                type="button"
+                className={`btn btn-sm ${selectedRange === 'today' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setSelectedRange('today')}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${selectedRange === 'week' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setSelectedRange('week')}
+              >
+                This Week
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${selectedRange === 'month' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setSelectedRange('month')}
+              >
+                This Month
+              </button>
             </div>
-            <div className="text-xs text-[var(--muted)] mt-1">Revenue for selected period</div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
-            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
-              <Coins className="w-4 h-4 text-[var(--ok)]" /> Gross Profit
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+            <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
+              <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+                <TrendingUp className="w-4 h-4 text-[var(--brand2)]" /> Total Sales
+              </div>
+              <div className="text-xl md:text-2xl font-bold font-serif text-[var(--ink)]">
+                {formatCurrency(currentMetrics.totalSales)}
+              </div>
+              <div className="text-xs text-[var(--muted)] mt-1">Revenue for selected period</div>
             </div>
-            <div className="text-xl md:text-2xl font-bold font-serif text-[var(--ok)]">
-              {formatCurrency(currentMetrics.grossProfit)}
-            </div>
-            <div className="text-xs text-[var(--muted)] mt-1">Sales minus product cost</div>
-          </div>
 
-          <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
-            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
-              <Receipt className="w-4 h-4 text-[var(--warn)]" /> Total Expenses
+            <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
+              <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+                <Coins className="w-4 h-4 text-[var(--ok)]" /> Gross Profit
+              </div>
+              <div className="text-xl md:text-2xl font-bold font-serif text-[var(--ok)]">
+                {formatCurrency(currentMetrics.grossProfit)}
+              </div>
+              <div className="text-xs text-[var(--muted)] mt-1">Sales minus product cost</div>
             </div>
-            <div className="text-xl md:text-2xl font-bold font-serif text-[var(--warn)]">
-              {formatCurrency(currentMetrics.totalExpenses)}
-            </div>
-            <div className="text-xs text-[var(--muted)] mt-1">Operating costs & overhead</div>
-          </div>
 
-          <div className={`p-4 rounded-2xl border ${currentMetrics.netIncome >= 0 ? 'bg-[var(--ok-bg)] border-[var(--ok)]/30' : 'bg-[var(--danger-bg)] border-[var(--danger)]/30'}`}>
-            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
-              {currentMetrics.netIncome >= 0 ? (
-                <ArrowUpRight className="w-4 h-4 text-[var(--ok)]" />
-              ) : (
-                <ArrowDownRight className="w-4 h-4 text-[var(--danger)]" />
-              )}
-              Net Income
+            <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
+              <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+                <Receipt className="w-4 h-4 text-[var(--warn)]" /> Total Expenses
+              </div>
+              <div className="text-xl md:text-2xl font-bold font-serif text-[var(--warn)]">
+                {formatCurrency(currentMetrics.totalExpenses)}
+              </div>
+              <div className="text-xs text-[var(--muted)] mt-1">Operating costs & overhead</div>
             </div>
-            <div className={`text-xl md:text-2xl font-bold font-serif ${currentMetrics.netIncome >= 0 ? 'text-[var(--ok)]' : 'text-[var(--danger)]'}`}>
-              {formatCurrency(currentMetrics.netIncome)}
+
+            <div className={`p-4 rounded-2xl border ${currentMetrics.netIncome >= 0 ? 'bg-[var(--ok-bg)] border-[var(--ok)]/30' : 'bg-[var(--danger-bg)] border-[var(--danger)]/30'}`}>
+              <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+                {currentMetrics.netIncome >= 0 ? (
+                  <ArrowUpRight className="w-4 h-4 text-[var(--ok)]" />
+                ) : (
+                  <ArrowDownRight className="w-4 h-4 text-[var(--danger)]" />
+                )}
+                Net Income
+              </div>
+              <div className={`text-xl md:text-2xl font-bold font-serif ${currentMetrics.netIncome >= 0 ? 'text-[var(--ok)]' : 'text-[var(--danger)]'}`}>
+                {formatCurrency(currentMetrics.netIncome)}
+              </div>
+              <div className="text-xs text-[var(--muted)] mt-1">Gross profit minus expenses</div>
             </div>
-            <div className="text-xs text-[var(--muted)] mt-1">Gross profit minus expenses</div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Summary Stats Row */}
       <div className="stats">
@@ -175,13 +190,15 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="stat">
-          <div className="lbl">
-            <TrendingUp className="ico" /> Sales Today
+        {user?.role !== 'Cashier' && (
+          <div className="stat">
+            <div className="lbl">
+              <TrendingUp className="ico" /> Sales Today
+            </div>
+            <div className="val">{formatCurrency(totalSalesToday)}</div>
+            <div className="meta">{formatCurrency(weekTotal)} this week</div>
           </div>
-          <div className="val">{formatCurrency(totalSalesToday)}</div>
-          <div className="meta">{formatCurrency(weekTotal)} this week</div>
-        </div>
+        )}
 
         <div className="stat">
           <div className="lbl">
@@ -195,32 +212,34 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 2-Column Grid: 7-Day Chart & Low Stock */}
-      <div className="grid-2">
-        <div className="card">
-          <h3>Sales · last 7 days</h3>
-          <div className="bars">
-            {salesDays.map((d, i) => {
-              const isToday = i === salesDays.length - 1;
-              const heightPct = Math.max(6, ((d.sales || 0) / maxSale) * 100);
-              return (
-                <div
-                  key={d.date || i}
-                  className={`bar ${isToday ? 'today' : ''}`}
-                  title={`${d.displayDate}: ${formatCurrency(d.sales || 0)}`}
-                >
-                  <i
-                    style={{
-                      height: `${heightPct}%`,
-                      animationDelay: `${i * 60}ms`
-                    }}
-                  />
-                  <span>{isToday ? 'Today' : d.displayDate?.split(' ')[0] || d.displayDate}</span>
-                </div>
-              );
-            })}
+      {/* Grid: 7-Day Chart (Owner only) & Low Stock */}
+      <div className={user?.role === 'Cashier' ? 'grid-1' : 'grid-2'}>
+        {user?.role !== 'Cashier' && (
+          <div className="card">
+            <h3>Sales · last 7 days</h3>
+            <div className="bars">
+              {salesDays.map((d, i) => {
+                const isToday = i === salesDays.length - 1;
+                const heightPct = Math.max(6, ((d.sales || 0) / maxSale) * 100);
+                return (
+                  <div
+                    key={d.date || i}
+                    className={`bar ${isToday ? 'today' : ''}`}
+                    title={`${d.displayDate}: ${formatCurrency(d.sales || 0)}`}
+                  >
+                    <i
+                      style={{
+                        height: `${heightPct}%`,
+                        animationDelay: `${i * 60}ms`
+                      }}
+                    />
+                    <span>{isToday ? 'Today' : d.displayDate?.split(' ')[0] || d.displayDate}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="card">
           <h3>

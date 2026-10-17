@@ -571,6 +571,20 @@
               ]
             }
           }
+        },
+        {
+          "name": "Get Cashier Dashboard Stats (Operational Only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/cashier-stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "cashier-stats"]
+            }
+          }
         }
       ]
     }
