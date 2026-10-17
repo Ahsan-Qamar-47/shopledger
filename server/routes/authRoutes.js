@@ -1,7 +1,8 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { register, login, getMe } = require('../controllers/authController');
+const { register, login, getMe, registerCashier } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { loginLimiter } = require('../middleware/rateLimiter');
 
@@ -21,6 +22,23 @@ router.post(
   ],
   validate,
   register
+);
+
+// @route   POST /api/auth/register-cashier (Owner only)
+router.post(
+  '/register-cashier',
+  protect,
+  checkRole('Owner'),
+  [
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('email').trim().isEmail().withMessage('Please provide a valid email address'),
+    body('password')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long'),
+    body('shopName').optional().trim()
+  ],
+  validate,
+  registerCashier
 );
 
 // @route   POST /api/auth/login

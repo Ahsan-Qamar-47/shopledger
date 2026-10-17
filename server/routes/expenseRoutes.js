@@ -8,12 +8,14 @@ const {
   deleteExpense
 } = require('../controllers/expenseController');
 const { protect } = require('../middleware/auth');
+const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
-// Apply auth protection to all expense routes
+// Apply auth protection and Owner RBAC restriction to all expense routes
 router.use(protect);
+router.use(checkRole('Owner'));
 
 router.post(
   '/',

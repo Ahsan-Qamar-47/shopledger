@@ -8,6 +8,7 @@ const {
   deleteCustomer
 } = require('../controllers/customerController');
 const { protect } = require('../middleware/auth');
+const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 
 const router = express.Router();
@@ -53,6 +54,7 @@ router
     updateCustomer
   )
   .delete(
+    checkRole('Owner'),
     [param('id').isMongoId().withMessage('Invalid Customer ID format')],
     validate,
     deleteCustomer

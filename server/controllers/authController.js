@@ -123,8 +123,65 @@ const getMe = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Register a new cashier under the current owner's shop
+ * @route   POST /api/auth/register-cashier (or POST /api/register-cashier)
+ * @access  Private (Owner only)
+ */
+const registerCashier = async (req, res, next) => {
+  try {
+    const { name, email, password, shopName } = req.body;
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this email address already exists',
+        error: {}
+      });
+    }
+
+    // Cashier belongs to the owner's shop unless explicitly specified
+    const targetShopName = shopName && shopName.trim() ? shopName.trim() : req.user.shopName;
+
+    // Create cashier with fixed role 'Cashier'
+    const cashier = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash: password,
+      shopName: targetShopName,
+      role: 'Cashier'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Cashier registered successfully',
+      data: {
+        id: cashier._id,
+        name: cashier.name,
+        email: cashier.email,
+        shopName: cashier.shopName,
+        role: cashier.role
+      },
+      user: {
+        id: cashier._id,
+        name: cashier.name,
+        email: cashier.email,
+        shopName: cashier.shopName,
+        role: cashier.role
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
-  getMe
+  getMe,
+  registerCashier
 };

@@ -44,6 +44,10 @@ app.use('/api/products', productRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/register-cashier', (req, res, next) => {
+  req.url = '/register-cashier';
+  authRoutes(req, res, next);
+});
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({

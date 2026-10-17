@@ -95,6 +95,31 @@
           }
         },
         {
+          "name": "Register Cashier (Owner Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Store Cashier Ali\",\n  \"email\": \"cashier@shopledger.com\",\n  \"password\": \"CashierPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register-cashier",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register-cashier"]
+            }
+          }
+        },
+        {
           "name": "Get Auth User Profile",
           "request": {
             "method": "GET",

@@ -2,10 +2,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 /**
- * Protect routes middleware
- * Verifies JWT token and attaches user object to req.user
+ * verifyToken middleware (V1 verifyToken middleware)
+ * Verifies JWT token and extracts user payload from JWT, attaching user to req.user
  */
-const protect = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   let token;
 
   if (
@@ -51,4 +51,7 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+// Aliased as protect for backward compatibility across existing routes
+const protect = verifyToken;
+
+module.exports = { verifyToken, protect };

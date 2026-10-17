@@ -8,6 +8,7 @@
     "start": "node server.js",
     "seed": "node seed.js",
     "test:week1": "node scripts/testWeek1Endpoints.js",
+    "test:week2day1": "node scripts/testWeek2Day1.js",
     "test": "node scripts/testWeek1Endpoints.js"
   },
   "keywords": [],
