@@ -19,10 +19,16 @@ export const AuthProvider = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken);
         try {
-          // It's better to fetch user from /me to ensure token is still valid
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          // Sync with /me to ensure token is still valid and fetch latest role
           const response = await api.get('/auth/me');
-          setUser(response.data.user);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+          const updatedUser = {
+            ...response.data.user,
+            role: response.data.user?.role || parsedUser?.role || 'Cashier'
+          };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
         } catch (error) {
           console.error('Failed to restore user:', error);
           logout();
@@ -48,7 +54,10 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true, role: userWithRole.role };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { 
+        success: false, 
+        message: error.response?.data?.message || error.message 
+      };
     }
   };
 
@@ -56,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/register', userData);
       const { token: newToken, user: newUser, role } = response.data;
-      const userWithRole = { ...newUser, role: newUser?.role || role || 'Cashier' };
+      const userWithRole = { ...newUser, role: newUser?.role || role || 'Owner' };
       
       setToken(newToken);
       setUser(userWithRole);
@@ -64,9 +73,12 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userWithRole));
       
-      return { success: true };
+      return { success: true, role: userWithRole.role };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { 
+        success: false, 
+        message: error.response?.data?.message || error.message 
+      };
     }
   };
 
@@ -89,9 +101,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   };
 
+  const isOwner = user?.role === 'Owner';
+  const isCashier = user?.role === 'Cashier';
+
   const value = {
     user,
     token,
+    role: user?.role || 'Cashier',
+    isOwner,
+    isCashier,
     loading,
     login,
     register,

@@ -1,12 +1,20 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { register, login, getMe, registerCashier } = require('../controllers/authController');
+const { register, login, getMe, registerCashier, getCashiers } = require('../controllers/authController');
 const { verifyToken, protect } = require('../middleware/auth');
 const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { loginLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
+
+// @route   GET /api/auth/cashiers (Protected by verifyToken and checkRole('Owner'))
+router.get(
+  '/cashiers',
+  verifyToken,
+  checkRole('Owner'),
+  getCashiers
+);
 
 // @route   POST /api/auth/register
 router.post(

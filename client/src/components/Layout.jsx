@@ -2,11 +2,11 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, BookOpen, Package, LogOut, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Package, Receipt, Users, LogOut, Sun, Moon } from 'lucide-react';
 import { initials } from '../utils/formatters';
 
 const Layout = () => {
-  const { user, logout } = useAuth();
+  const { user, isOwner, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -15,11 +15,15 @@ const Layout = () => {
     navigate('/login');
   };
 
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Khata', path: '/customers', icon: BookOpen },
-    { name: 'Inventory', path: '/inventory', icon: Package },
+  const allNavItems = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, ownerOnly: false },
+    { name: 'Khata', path: '/customers', icon: BookOpen, ownerOnly: false },
+    { name: 'Inventory', path: '/inventory', icon: Package, ownerOnly: false },
+    { name: 'Expenses', path: '/expenses', icon: Receipt, ownerOnly: true },
+    { name: 'Cashiers', path: '/cashiers', icon: Users, ownerOnly: true },
   ];
+
+  const navItems = allNavItems.filter((item) => !item.ownerOnly || isOwner);
 
   const shopName = user?.shopName || 'ShopLedger';
 
@@ -106,6 +110,9 @@ const Layout = () => {
             </div>
           </div>
           <div className="top-actions">
+            <span className={`rolepill ${user?.role === 'Cashier' ? 'cashier' : ''}`}>
+              {user?.role || 'Owner'}
+            </span>
             <button
               type="button"
               className="icon-btn"

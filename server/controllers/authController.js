@@ -182,9 +182,34 @@ const registerCashier = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Get all cashiers under owner shop
+ * @route   GET /api/auth/cashiers
+ * @access  Private (Owner only)
+ */
+const getCashiers = async (req, res, next) => {
+  try {
+    const cashiers = await User.find({
+      shopName: req.user.shopName,
+      role: 'Cashier'
+    })
+      .select('-passwordHash')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: cashiers.length,
+      cashiers
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
-  registerCashier
+  registerCashier,
+  getCashiers
 };
