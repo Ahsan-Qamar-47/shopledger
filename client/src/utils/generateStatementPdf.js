@@ -19,21 +19,21 @@ export const generateStatementPdf = (customer, transactions, user = { name: 'Sho
   // --- Header ---
   // Shop Name (Center)
   doc.setFontSize(22);
-  doc.setTextColor(34, 57, 111); // text-slate-800 equivalent (#22396f)
+  doc.setTextColor(11, 107, 93); // brand color #0B6B5D
   doc.text(shopName, 105, 20, { align: 'center' });
   
   // Statement Title
   doc.setFontSize(14);
-  doc.setTextColor(100, 100, 100);
+  doc.setTextColor(104, 118, 111); // muted color #68766F
   doc.text('Customer Account Statement', 105, 30, { align: 'center' });
 
   // Divider line
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(232, 228, 218);
   doc.line(14, 35, 196, 35);
   
   // Customer Info (Left)
   doc.setFontSize(12);
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(14, 31, 28);
   doc.setFont('helvetica', 'bold');
   doc.text('Customer Details:', 14, 45);
   doc.setFont('helvetica', 'normal');
@@ -49,7 +49,7 @@ export const generateStatementPdf = (customer, transactions, user = { name: 'Sho
   
   // Current Balance
   doc.setFont('helvetica', 'bold');
-  doc.text(`Balance: Rs. ${Math.abs(customer.totalBalance).toLocaleString()} ${customer.totalBalance > 0 ? 'Adv' : customer.totalBalance < 0 ? 'Due' : ''}`, 140, 59);
+  doc.text(`Balance: Rs. ${Math.abs(customer.totalBalance).toLocaleString()} ${customer.totalBalance > 0 ? 'Due' : customer.totalBalance < 0 ? 'Adv' : 'Settled'}`, 140, 59);
 
   // --- Transactions Table ---
   // Prepare table data
@@ -84,7 +84,7 @@ export const generateStatementPdf = (customer, transactions, user = { name: 'Sho
     body: tableData,
     theme: 'grid',
     headStyles: {
-      fillColor: [13, 28, 66], // text-slate-900 equivalent (#0d1c42)
+      fillColor: [11, 107, 93], // brand color #0B6B5D
       textColor: [255, 255, 255],
       fontStyle: 'bold'
     },

@@ -3,29 +3,26 @@ import React from 'react';
 const Button = ({
   children,
   variant = 'primary',
+  size = 'md',
   isLoading = false,
   className = '',
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100';
-  
-  const variants = {
-    primary: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30',
-    secondary: 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700',
-    danger: 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30',
-    ghost: 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
-  };
+  const variantClass = {
+    primary: 'btn-primary',
+    secondary: 'btn-soft',
+    soft: 'btn-soft',
+    danger: 'btn-danger',
+    wa: 'btn-wa',
+    ghost: 'btn-ghost'
+  }[variant] || 'btn-primary';
 
-  const sizes = {
-    sm: 'py-1.5 px-3 text-sm',
-    md: 'py-2.5 px-4 text-base',
-    lg: 'py-3 px-6 text-lg'
-  };
+  const sizeClass = size === 'sm' ? 'btn-sm' : '';
 
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes.md} ${className}`}
+      className={`btn ${variantClass} ${sizeClass} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >

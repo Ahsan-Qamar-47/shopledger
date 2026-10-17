@@ -4,20 +4,28 @@ import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import { getWhatsAppLink } from '../utils/phone';
 import { generateStatementPdf } from '../utils/generateStatementPdf';
-import { AlertTriangle, FileText, ArrowLeft, CreditCard, MessageCircle, FileDown } from 'lucide-react';
+import {
+  ArrowLeft,
+  ShoppingCart,
+  ArrowDown,
+  MessageCircle,
+  FileText,
+  AlertTriangle,
+  Check
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 import AddSaleModal from '../components/AddSaleModal';
 import AddPaymentModal from '../components/AddPaymentModal';
+import { formatCurrency, formatDate, initials } from '../utils/formatters';
 
 const CustomerStatement = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -25,7 +33,7 @@ const CustomerStatement = () => {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  
+
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
@@ -41,18 +49,20 @@ const CustomerStatement = () => {
       const response = await api.get(`/transactions/customer/${id}`, {
         params: { page: pageNum, limit: 10 }
       });
-      
+
       if (pageNum === 1) {
         setCustomer(response.data.data.customer);
         setTransactions(response.data.data.transactions || []);
       } else {
-        setTransactions(prev => [...prev, ...(response.data.data.transactions || [])]);
+        setTransactions((prev) => [
+          ...prev,
+          ...(response.data.data.transactions || [])
+        ]);
       }
 
       const pagination = response.data.data.pagination;
       setHasMore(pagination.page < pagination.pages);
       setPage(pagination.page);
-
     } catch (error) {
       toast.error('Failed to load statement');
       if (error.message === 'Customer not found or inactive') {
@@ -73,40 +83,39 @@ const CustomerStatement = () => {
   const handleWhatsAppReminder = () => {
     if (!customer) return;
     const balance = customer.totalBalance;
-    
-    // Safety check, though button should be disabled anyway
+
     if (balance <= 0) {
-      toast('Customer has no pending dues.', { icon: <MessageCircle className="w-4 h-4 text-emerald-400" /> });
+      toast('This customer has no outstanding balance.');
       return;
     }
-    
+
     const shopName = user?.shopName || user?.name || 'ShopLedger';
-    const message = `Hello ${customer.name},\nThis is a friendly reminder from ${shopName} regarding your pending khata balance of Rs. ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.\nPlease arrange for payment at your earliest convenience.\nThank you!`;
-    
+    const message = `Assalam-o-Alaikum ${customer.name},\n\nThis is a friendly reminder from ${shopName}. Your outstanding balance is ${formatCurrency(balance)}.\n\nPlease clear it at your earliest convenience. Thank you!`;
+
     const link = getWhatsAppLink(customer.phone, message);
     if (!link) {
       toast.error('Invalid or missing phone number for this customer.');
       return;
     }
-    
-    window.open(link, '_blank');
+
+    window.open(link, '_blank', 'noopener');
   };
 
   const handleDownloadPDF = async () => {
     if (!customer) return;
-    
+
     setPdfLoading(true);
     try {
-      // Fetch ALL transactions for the PDF (limit=1000 to cover full statement)
       const response = await api.get(`/transactions/customer/${id}`, {
         params: { page: 1, limit: 1000 }
       });
       const allTransactions = response.data.data.transactions || [];
-      
+
       generateStatementPdf(customer, allTransactions, user);
-      toast.success('PDF generated successfully');
-    } catch (error) {
-      toast.error('Failed to generate PDF');
+      toast.success('Statement PDF generated');
+    } catch (_error) {
+      // Fallback to browser print if jsPDF has any issue
+      window.print();
     } finally {
       setPdfLoading(false);
     }
@@ -115,171 +124,213 @@ const CustomerStatement = () => {
   if (loading) {
     return (
       <div className="py-20 flex justify-center">
-        <Spinner className="w-10 h-10" />
+        <Spinner />
       </div>
     );
   }
 
   if (!customer) {
     return (
-      <EmptyState 
-        icon={<AlertTriangle />}
-        title="Customer Not Found"
-        description="The customer you are looking for does not exist or has been deleted."
-        actionLabel="Back to Customers"
-        onAction={() => navigate('/customers')}
-      />
+      <div className="view">
+        <button className="back" onClick={() => navigate('/customers')}>
+          <ArrowLeft className="ico" /> Back
+        </button>
+        <EmptyState
+          icon={<AlertTriangle />}
+          title="Customer Not Found"
+          description="The customer statement you are looking for does not exist or has been removed."
+          actionLabel="Back to Khata"
+          onAction={() => navigate('/customers')}
+        />
+      </div>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-sm space-y-6">
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => navigate('/customers')}
-              className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">{customer.name}</h2>
-              <p className="text-sm text-slate-400">{customer.phone}</p>
-            </div>
-          </div>
-          
-          <div className="text-left md:text-right bg-slate-800/50 px-6 py-3 rounded-xl border border-slate-700/50">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Total Balance</p>
-            <div className={`text-2xl font-bold ${customer.totalBalance > 0 ? 'text-emerald-400' : customer.totalBalance < 0 ? 'text-red-400' : 'text-slate-300'}`}>
-              Rs. {Math.abs(customer.totalBalance).toLocaleString()}
-              <span className="text-sm font-medium ml-2">
-                {customer.totalBalance > 0 ? 'Adv' : customer.totalBalance < 0 ? 'Due' : ''}
-              </span>
-            </div>
-          </div>
-        </div>
+  const balance = customer.totalBalance || 0;
+  const isDue = balance > 0;
+  const isAdv = balance < 0;
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-800">
-          <Button variant="primary" onClick={() => setIsSaleModalOpen(true)}>
-            + Add Sale
-          </Button>
-          <Button variant="secondary" onClick={() => setIsPaymentModalOpen(true)} className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4" /> Add Payment
-          </Button>
-          <Button 
-            variant="ghost" 
-            onClick={handleWhatsAppReminder} 
-            className="!text-emerald-400 hover:!bg-emerald-400/10 border border-emerald-400/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:!bg-transparent"
-            disabled={customer.totalBalance <= 0}
-          >
-            <MessageCircle className="w-4 h-4" /> WhatsApp Reminder
-          </Button>
-          <Button variant="ghost" onClick={handleDownloadPDF} isLoading={pdfLoading} className="!text-indigo-400 hover:!bg-indigo-400/10 border border-indigo-400/20 md:ml-auto flex items-center gap-2">
-            <FileDown className="w-4 h-4" /> Print PDF
-          </Button>
-        </div>
+  return (
+    <div className="view">
+      {/* Back button */}
+      <button
+        type="button"
+        className="back"
+        onClick={() => navigate('/customers')}
+      >
+        <ArrowLeft className="ico" /> Back to Khata
+      </button>
+
+      {/* Print Statement Header */}
+      <div className="print-only">
+        <h2 style={{ fontFamily: 'var(--display)' }}>
+          ShopLedger – Customer Statement
+        </h2>
+        <p>
+          {user?.shopName || 'ShopLedger'} · Generated {formatDate(new Date())}
+        </p>
       </div>
 
-      {/* Transactions List */}
-      <h3 className="text-lg font-bold text-white px-1">Transaction History</h3>
-      
-      {transactions.length === 0 ? (
-        <EmptyState 
-          icon={<FileText />}
-          title="No transactions yet"
-          description="Click Add Sale to begin tracking history."
-          actionLabel="Add Sale"
-          onAction={() => setIsSaleModalOpen(true)}
-        />
-      ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm print:border-none print:shadow-none print:bg-white print:text-black">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-800 print:bg-slate-100 print:text-slate-600 print:border-slate-300">
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Details</th>
-                  <th className="p-4 text-right">Amount (Rs)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50 print:divide-slate-200">
-                {transactions.map((tx) => {
-                  const date = new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-                  const isSale = tx.type === 'SALE';
-                  
-                  return (
-                    <tr key={tx._id} className="hover:bg-slate-800/30 transition-colors print:hover:bg-transparent">
-                      <td className="p-4 align-top whitespace-nowrap">
-                        <div className="font-medium text-slate-300 print:text-black">{date}</div>
-                        <div className={`text-xs font-bold mt-1 ${isSale ? 'text-indigo-400' : 'text-emerald-400'}`}>
-                          {isSale ? 'SALE' : 'PAYMENT'}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        {isSale && tx.items && tx.items.length > 0 && (
-                          <div className="space-y-1 mb-2">
-                            {tx.items.map((item, idx) => (
-                              <div key={idx} className="text-sm text-slate-200 print:text-black flex items-center">
-                                <span className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs mr-2 text-slate-400 print:border print:bg-transparent">{item.quantity}x</span>
-                                {item.name}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {tx.notes && (
-                          <div className="text-xs text-slate-400 italic bg-slate-800/30 p-2 rounded-lg border border-slate-700/50 print:bg-transparent print:border-none print:p-0">
-                            "{tx.notes}"
-                          </div>
-                        )}
-                        {!tx.notes && tx.type === 'PAYMENT' && (
-                          <div className="text-sm text-slate-400">Cash Received</div>
-                        )}
-                      </td>
-                      <td className="p-4 text-right align-top">
-                        <div className={`font-bold ${isSale ? 'text-red-400' : 'text-emerald-400'} print:text-black`}>
-                          {isSale ? '+' : '-'}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1 print:text-slate-500">
-                          Bal: {tx.balanceAfter != null ? tx.balanceAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* 2-Column Statement View */}
+      <div className="stmt">
+        {/* Left Column: Customer Profile & Quick Actions */}
+        <div className="card profile">
+          <div className="head">
+            <div className="who">
+              <div className="av">{initials(customer.name)}</div>
+              <div>
+                <h2>{customer.name}</h2>
+                <div className="phone">{customer.phone}</div>
+                {customer.address && (
+                  <div className="text-xs opacity-70 mt-0.5">{customer.address}</div>
+                )}
+              </div>
+            </div>
+
+            <div className="big">
+              <small>
+                {isDue ? 'Balance due' : isAdv ? 'Advance paid' : 'Account status'}
+              </small>
+              <strong>
+                {balance === 0 ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    Settled <Check className="w-6 h-6 inline text-[var(--ok)]" />
+                  </span>
+                ) : (
+                  formatCurrency(Math.abs(balance))
+                )}
+              </strong>
+            </div>
           </div>
-          
+
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setIsSaleModalOpen(true)}
+            >
+              <ShoppingCart className="ico" /> Add Sale
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={() => setIsPaymentModalOpen(true)}
+            >
+              <ArrowDown className="ico" /> Add Payment
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-wa"
+              onClick={handleWhatsAppReminder}
+            >
+              <MessageCircle className="ico" /> WhatsApp
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+            >
+              <FileText className="ico" /> {pdfLoading ? 'Loading...' : 'PDF'}
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Transaction History */}
+        <div>
+          <div className="page-head" style={{ marginBottom: '14px' }}>
+            <h1 style={{ fontSize: '1.15rem' }}>Transaction history</h1>
+            <span className="badge ok">
+              {transactions.length} record{transactions.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          {transactions.length === 0 ? (
+            <div className="card empty">
+              <div className="em-ico">
+                <FileText className="w-6 h-6 text-[var(--ok)]" />
+              </div>
+              <b>No transactions yet</b>
+              Click Add Sale to start recording transactions.
+            </div>
+          ) : (
+            <div className="tl">
+              {transactions.map((tx, i) => {
+                const isSale = tx.type === 'SALE';
+                const itemsSummary =
+                  isSale && tx.items && tx.items.length > 0
+                    ? tx.items.map((it) => `${it.quantity}x ${it.name}`).join(', ')
+                    : '';
+
+                return (
+                  <div
+                    key={tx._id || i}
+                    className={`tx ${isSale ? 'sale' : 'pay'}`}
+                    style={{ animationDelay: `${i * 35}ms` }}
+                  >
+                    <div className="ic">
+                      {isSale ? (
+                        <ShoppingCart className="ico" />
+                      ) : (
+                        <ArrowDown className="ico" />
+                      )}
+                    </div>
+
+                    <div className="grow">
+                      <div className="t1">
+                        <b>{isSale ? 'Sale (Udhaar)' : 'Payment received'}</b>
+                        <span className="amt">
+                          {isSale ? '+' : '−'}
+                          {formatCurrency(tx.amount)}
+                        </span>
+                      </div>
+
+                      <small>
+                        {formatDate(tx.date || tx.createdAt)}
+                        {itemsSummary ? ` · ${itemsSummary}` : ''}
+                      </small>
+
+                      {tx.notes && <div className="note">{tx.notes}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {hasMore && (
-            <div className="p-4 border-t border-slate-800 flex justify-center bg-slate-900/50 print:hidden">
-              <Button 
-                variant="secondary" 
-                onClick={handleLoadMore} 
+            <div className="mt-5 flex justify-center no-print">
+              <Button
+                variant="soft"
+                onClick={handleLoadMore}
                 isLoading={loadingMore}
-                className="w-full sm:w-auto"
               >
                 Load More Transactions
               </Button>
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Modals */}
-      <AddSaleModal 
-        isOpen={isSaleModalOpen} 
+      {/* Sale Modal */}
+      <AddSaleModal
+        isOpen={isSaleModalOpen}
         onClose={() => setIsSaleModalOpen(false)}
         customerId={id}
+        customerName={customer.name}
         onSaleAdded={() => fetchStatement(1)}
       />
-      
-      <AddPaymentModal 
-        isOpen={isPaymentModalOpen} 
+
+      {/* Payment Modal */}
+      <AddPaymentModal
+        isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         customerId={id}
+        customerName={customer.name}
+        currentBalance={balance}
         onPaymentAdded={() => fetchStatement(1)}
       />
     </div>

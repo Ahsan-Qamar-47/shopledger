@@ -1,40 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
-
 import Modal from './ui/Modal';
 import Button from './ui/Button';
-import Input from './ui/Input';
-import Select from './ui/Select';
+import { Plus, Trash2 } from 'lucide-react';
+import { formatCurrency } from '../utils/formatters';
 
-const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
+const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }) => {
   const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  
   const [items, setItems] = useState([{ productId: '', quantity: 1 }]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (isOpen && products.length === 0) {
+    if (isOpen) {
       fetchProducts();
-    }
-    if (!isOpen) {
-      // Reset state when closed
       setItems([{ productId: '', quantity: 1 }]);
       setNotes('');
+      setErrorMessage('');
     }
   }, [isOpen]);
 
   const fetchProducts = async () => {
-    setLoadingProducts(true);
     try {
       const response = await api.get('/products', { params: { limit: 1000 } });
       setProducts(response.data.data || []);
     } catch (error) {
       toast.error('Failed to load products');
-    } finally {
-      setLoadingProducts(false);
     }
   };
 
@@ -56,35 +49,34 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
     }
   };
 
-  // Calculate live total
   const calculateTotal = () => {
-    let total = 0;
-    items.forEach(item => {
+    return items.reduce((total, item) => {
       if (item.productId && item.quantity > 0) {
-        const product = products.find(p => p._id === item.productId);
+        const product = products.find((p) => p._id === item.productId);
         if (product) {
-          total += product.price * item.quantity;
+          return total + (product.price || 0) * item.quantity;
         }
       }
-    });
-    return total;
+      return total;
+    }, 0);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
-    const validItems = items.filter(item => item.productId && item.quantity > 0);
+    setErrorMessage('');
+
+    const validItems = items.filter((item) => item.productId && item.quantity > 0);
     if (validItems.length === 0) {
-      toast.error('Please add at least one valid product');
+      setErrorMessage('Please select at least one item with quantity.');
       return;
     }
 
-    // Check stock boundaries on frontend
     for (const item of validItems) {
-      const product = products.find(p => p._id === item.productId);
+      const product = products.find((p) => p._id === item.productId);
       if (product && item.quantity > product.stockQuantity) {
-        toast.error(`Quantity for ${product.name} exceeds available stock (${product.stockQuantity})`);
+        setErrorMessage(
+          `Only ${product.stockQuantity} "${product.name}" available in stock.`
+        );
         return;
       }
     }
@@ -94,100 +86,103 @@ const AddSaleModal = ({ isOpen, onClose, customerId, onSaleAdded }) => {
       await api.post('/transactions/sale', {
         customerId,
         items: validItems,
-        notes
+        notes: notes.trim()
       });
-      toast.success('Sale recorded successfully');
+      toast.success(`Sale of ${formatCurrency(calculateTotal())} recorded`);
       onSaleAdded();
       onClose();
     } catch (error) {
-      toast.error(error.message || 'Failed to record sale');
+      setErrorMessage(error.message || 'Failed to record sale');
     } finally {
       setLoading(false);
     }
   };
 
-  const productOptions = products
-    .filter(p => p.stockQuantity > 0) // Only show items in stock
-    .map(p => ({
-      label: `${p.name} - Rs. ${p.price} (${p.stockQuantity} in stock)`,
-      value: p._id
-    }));
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Record Sale">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4 max-h-[50dvh] overflow-y-auto pr-2">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Record New Sale (Udhaar)"
+      subtitle={customerName ? `For ${customerName} · inventory stock updates automatically` : 'Sales are linked to inventory'}
+    >
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="space-y-2 mb-3">
           {items.map((item, index) => (
-            <div key={index} className="flex flex-col sm:flex-row gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 relative">
-              {items.length > 1 && (
+            <div className="rowitem" key={index}>
+              <select
+                className="select"
+                value={item.productId}
+                onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
+                required
+              >
+                <option value="" disabled>Select item...</option>
+                {products.map((p) => (
+                  <option
+                    key={p._id}
+                    value={p._id}
+                    disabled={p.stockQuantity < 1}
+                  >
+                    {p.name} ({formatCurrency(p.price)})
+                    {p.stockQuantity < 1 ? ' – Out of stock' : ` [${p.stockQuantity} left]`}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                className="input"
+                type="number"
+                min="1"
+                value={item.quantity}
+                onChange={(e) =>
+                  handleItemChange(index, 'quantity', Math.max(1, parseInt(e.target.value) || 1))
+                }
+                aria-label="Quantity"
+              />
+
+              {items.length > 1 ? (
                 <button
                   type="button"
+                  className="icon-btn text-[var(--danger)]"
                   onClick={() => removeItemRow(index)}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 border border-slate-700 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors shadow-lg z-10"
+                  title="Remove item"
+                  aria-label="Remove item"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <Trash2 className="w-4 h-4" />
                 </button>
+              ) : (
+                <div className="w-10" />
               )}
-              
-              <div className="flex-1">
-                <Select
-                  id={`product-${index}`}
-                  label={index === 0 ? "Select Product" : ""}
-                  options={productOptions}
-                  value={item.productId}
-                  onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
-                  required
-                />
-              </div>
-              <div className="w-full sm:w-28">
-                <Input
-                  id={`qty-${index}`}
-                  label={index === 0 ? "Qty" : ""}
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))}
-                  required
-                />
-              </div>
             </div>
           ))}
-          
-          <button
-            type="button"
-            onClick={addItemRow}
-            className="text-sm font-medium text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 py-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            <span>Add Another Item</span>
-          </button>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center">
-          <span className="text-slate-400 font-medium">Live Total Preview</span>
-          <span className="text-xl font-bold text-emerald-400">Rs. {calculateTotal().toLocaleString()}</span>
+        <button
+          type="button"
+          className="btn btn-ghost !p-0 !h-auto text-sm mb-3 flex items-center gap-1.5"
+          onClick={addItemRow}
+        >
+          <Plus className="w-4 h-4" /> Add Another Item
+        </button>
+
+        <div className="totalbar">
+          <span>Total Amount</span>
+          <strong>{formatCurrency(calculateTotal())}</strong>
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="sale-notes" className="block text-sm font-medium text-slate-300">
-            Notes (Optional)
-          </label>
-          <textarea
-            id="sale-notes"
+        <label className="field">
+          <span>Notes (optional)</span>
+          <input
+            className="input"
+            placeholder="e.g. Evening pickup, will clear on Friday"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-            placeholder="Any additional details..."
-            rows={2}
           />
-        </div>
+        </label>
 
-        <div className="pt-2 flex justify-end space-x-3">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+        {errorMessage && <p className="err">{errorMessage}</p>}
+
+        <div className="btns">
+          <Button type="button" variant="soft" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button type="submit" isLoading={loading}>

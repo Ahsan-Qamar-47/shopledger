@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
+import { BookOpen, Sun, Moon } from 'lucide-react';
 import Button from '../components/ui/Button';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     shopName: '',
+    email: '',
     password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const { register } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -21,120 +27,188 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, email, shopName, password } = formData;
-    
-    if (!name || !email || !shopName || !password) {
-      toast.error('Please fill in all fields');
+    setErrorMessage('');
+
+    const { name, shopName, email, password } = formData;
+
+    if (!shopName.trim()) {
+      setErrorMessage('Please enter your shop name.');
+      return;
+    }
+    if (!name.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
+    }
+    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
+      setErrorMessage('Enter a valid email address.');
       return;
     }
     if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+      setErrorMessage('Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
-    const result = await register({ name, email, shopName, password });
+    const result = await register({
+      name: name.trim(),
+      shopName: shopName.trim(),
+      email: email.trim(),
+      password
+    });
     setLoading(false);
 
     if (result.success) {
       toast.success('Account created successfully');
       navigate('/dashboard');
     } else {
-      toast.error(result.message || 'Signup failed');
+      setErrorMessage(result.message || 'Registration failed');
     }
   };
 
   return (
-    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-6">
-      <div className="w-full max-w-md space-y-8 bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center font-bold text-white text-3xl shadow-lg shadow-indigo-500/30 mx-auto mb-4">
-            S
+    <section id="auth">
+      <button
+        type="button"
+        className="icon-btn auth-theme"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun className="ico" /> : <Moon className="ico" />}
+      </button>
+
+      <aside className="auth-art">
+        <div className="logo">
+          <div className="logo-mark">
+            <BookOpen className="w-5 h-5 text-white" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white">Create Account</h2>
-          <p className="mt-2 text-sm text-slate-400">Join ShopLedger today</p>
+          <div>
+            <b>ShopLedger</b>
+            <small>Digital Khata System</small>
+          </div>
         </div>
 
-        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="name">
-              Full Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="John Doe"
-              value={formData.name}
-              onChange={handleChange}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="email">
-              Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="shop@example.com"
-              value={formData.email}
-              onChange={handleChange}
-            />
-          </div>
+        <div>
+          <h2>
+            Your khata, <em>finally</em> in your pocket.
+          </h2>
+          <p>
+            Track udhaar, record payments, manage stock and remind customers on
+            WhatsApp — all in one calm, beautiful place.
+          </p>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="shopName">
-              Shop Name
-            </label>
-            <input
-              id="shopName"
-              type="text"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="My Store"
-              value={formData.shopName}
-              onChange={handleChange}
-            />
+        <div className="glass">
+          <small>Total Udhaar</small>
+          <strong>Rs. 15,000</strong>
+          <div className="row">
+            <span>Ahmed Khan</span>
+            <b>Rs. 5,000</b>
+          </div>
+          <div className="row">
+            <span>Bilal Hussain</span>
+            <b>Rs. 3,500</b>
+          </div>
+        </div>
+      </aside>
+
+      <div className="auth-panel">
+        <div className="auth-card">
+          <div className="logo">
+            <div className="logo-mark">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <b>ShopLedger</b>
+              <small>Digital Khata System</small>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1" htmlFor="password">
-              Password
+          <h1>Create your account</h1>
+          <p className="sub">Start your digital khata in under a minute.</p>
+
+          <form onSubmit={handleSubmit} noValidate>
+            <label className="field">
+              <span>Shop name</span>
+              <input
+                className="input"
+                id="shopName"
+                type="text"
+                placeholder="e.g. Al-Madina General Store"
+                autoComplete="organization"
+                value={formData.shopName}
+                onChange={handleChange}
+                required
+              />
             </label>
-            <input
-              id="password"
-              type="password"
-              required
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-            />
-          </div>
 
-          <Button
-            type="submit"
-            isLoading={loading}
-            className="w-full mt-4"
-          >
-            Sign Up
-          </Button>
-        </form>
+            <label className="field">
+              <span>Your name</span>
+              <input
+                className="input"
+                id="name"
+                type="text"
+                placeholder="e.g. Muhammad Umair"
+                autoComplete="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+            </label>
 
-        <div className="text-center mt-6">
-          <p className="text-sm text-slate-400">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
-              Sign in
-            </Link>
+            <label className="field">
+              <span>Email address</span>
+              <input
+                className="input"
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </label>
+
+            <label className="field">
+              <span>Password</span>
+              <div className="pw">
+                <input
+                  className="input"
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </label>
+
+            {errorMessage && <p className="err">{errorMessage}</p>}
+
+            <Button
+              className="btn-block mt-2"
+              type="submit"
+              isLoading={loading}
+            >
+              Create Account
+            </Button>
+          </form>
+
+          <p className="auth-switch">
+            <span>Already have an account? </span>
+            <Link to="/login">Login</Link>
           </p>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

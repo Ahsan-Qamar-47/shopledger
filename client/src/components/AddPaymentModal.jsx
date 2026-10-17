@@ -1,20 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
-
 import Modal from './ui/Modal';
-import Input from './ui/Input';
 import Button from './ui/Button';
+import { formatCurrency } from '../utils/formatters';
 
-const AddPaymentModal = ({ isOpen, onClose, customerId, onPaymentAdded }) => {
+const AddPaymentModal = ({
+  isOpen,
+  onClose,
+  customerId,
+  customerName,
+  currentBalance = 0,
+  onPaymentAdded
+}) => {
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setAmount('');
+      setNotes('');
+      setErrorMessage('');
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || amount <= 0) {
-      toast.error('Payment amount must be greater than 0');
+    setErrorMessage('');
+
+    const numericAmount = Number(amount);
+    if (!numericAmount || numericAmount <= 0) {
+      setErrorMessage('Please enter an amount greater than zero.');
       return;
     }
 
@@ -22,53 +40,79 @@ const AddPaymentModal = ({ isOpen, onClose, customerId, onPaymentAdded }) => {
     try {
       await api.post('/transactions/payment', {
         customerId,
-        amount: Number(amount),
-        notes
+        amount: numericAmount,
+        notes: notes.trim()
       });
-      toast.success('Payment recorded successfully');
-      setAmount('');
-      setNotes('');
+      toast.success(`Payment of ${formatCurrency(numericAmount)} recorded`);
       onPaymentAdded();
       onClose();
     } catch (error) {
-      toast.error(error.message || 'Failed to record payment');
+      setErrorMessage(error.message || 'Failed to record payment');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleFillFullBalance = () => {
+    if (currentBalance > 0) {
+      setAmount(String(currentBalance));
+    }
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Payment">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Payment Amount (Rs)"
-          id="amount"
-          type="number"
-          min="1"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="5000"
-          required
-        />
-        <div className="space-y-1">
-          <label htmlFor="notes" className="block text-sm font-medium text-slate-300">
-            Notes (Optional)
-          </label>
-          <textarea
-            id="notes"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Record Customer Payment"
+      subtitle={
+        customerName
+          ? `${customerName} · currently owes ${formatCurrency(Math.max(0, currentBalance))}`
+          : 'Record cash or online payment received'
+      }
+    >
+      <form onSubmit={handleSubmit} noValidate>
+        <label className="field">
+          <span>Amount received (Rs.)</span>
+          <input
+            className="input"
+            type="number"
+            min="1"
+            inputMode="numeric"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </label>
+
+        {currentBalance > 0 && (
+          <button
+            type="button"
+            className="btn btn-ghost !p-0 !h-auto text-sm mb-3 block text-left"
+            onClick={handleFillFullBalance}
+          >
+            Fill full balance ({formatCurrency(currentBalance)})
+          </button>
+        )}
+
+        <label className="field">
+          <span>Notes (optional)</span>
+          <input
+            className="input"
+            placeholder="e.g. Partial cash payment, Easypaisa, etc."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-            placeholder="Cash received..."
-            rows={3}
           />
-        </div>
-        <div className="pt-4 flex justify-end space-x-3">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+        </label>
+
+        {errorMessage && <p className="err">{errorMessage}</p>}
+
+        <div className="btns">
+          <Button type="button" variant="soft" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button type="submit" isLoading={loading}>
-            Record Payment
+            Save Payment
           </Button>
         </div>
       </form>

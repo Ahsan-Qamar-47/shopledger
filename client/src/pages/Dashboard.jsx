@@ -2,28 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Wallet, TrendingUp, AlertTriangle, CheckCircle, Users } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
+import { Wallet, TrendingUp, Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { formatCurrency, colorFor, initials } from '../utils/formatters';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
+  const [customerCount, setCustomerCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardStats = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const response = await api.get('/dashboard/stats');
-        if (response.data.success) {
-          setStats(response.data.data);
+        const [statsRes, custRes] = await Promise.all([
+          api.get('/dashboard/stats'),
+          api.get('/customers').catch(() => ({ data: { data: [] } }))
+        ]);
+
+        if (statsRes.data.success) {
+          setStats(statsRes.data.data);
+        }
+        if (custRes.data?.data) {
+          setCustomerCount(custRes.data.data.length);
         }
       } catch (error) {
         console.error('Failed to fetch dashboard stats', error);
@@ -32,175 +32,198 @@ const Dashboard = () => {
       }
     };
 
-    fetchDashboardStats();
+    fetchDashboardData();
   }, []);
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="h-8 w-64 bg-slate-800 rounded animate-pulse"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-32 bg-slate-900 rounded-2xl animate-pulse"></div>
-          <div className="h-32 bg-slate-900 rounded-2xl animate-pulse"></div>
+      <div className="view space-y-6">
+        <div className="h-10 w-64 bg-[var(--surface)] border border-[var(--line)] rounded-xl animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2 h-36 bg-[var(--surface)] border border-[var(--line)] rounded-[var(--r)] animate-pulse" />
+          <div className="h-36 bg-[var(--surface)] border border-[var(--line)] rounded-[var(--r)] animate-pulse" />
+          <div className="h-36 bg-[var(--surface)] border border-[var(--line)] rounded-[var(--r)] animate-pulse" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-64 bg-slate-900 rounded-2xl animate-pulse"></div>
-          <div className="h-64 bg-slate-900 rounded-2xl animate-pulse"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="h-56 bg-[var(--surface)] border border-[var(--line)] rounded-[var(--r)] animate-pulse" />
+          <div className="h-56 bg-[var(--surface)] border border-[var(--line)] rounded-[var(--r)] animate-pulse" />
         </div>
       </div>
     );
   }
 
+  const hr = new Date().getHours();
+  const greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+  const shopName = user?.shopName || 'ShopLedger';
+
+  const totalReceivables = stats?.totalReceivables || 0;
+  const totalSalesToday = stats?.totalSalesToday || 0;
+  const topDebtors = stats?.topDebtors || [];
+  const lowStockItems = stats?.lowStockItems || [];
+  const salesDays = stats?.salesLast7Days || [];
+  const weekTotal = salesDays.reduce((acc, curr) => acc + (curr.sales || 0), 0);
+  const maxSale = Math.max(...salesDays.map((d) => d.sales || 0), 1);
+
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="view">
       {/* Welcome Header */}
-      <div className="flex justify-between items-end">
+      <div className="page-head">
         <div>
-          <h2 className="text-2xl font-bold text-white">
-            Welcome, {user?.shopName || 'Shop'}
-          </h2>
-          <p className="text-slate-400 mt-1">Here is what is happening today.</p>
+          <p>{greet}</p>
+          <h1>Welcome, {shopName}</h1>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm font-medium">Total Udhaar</p>
-            <p className="text-3xl font-bold text-red-400 mt-2">
-              Rs {stats?.totalReceivables?.toLocaleString() || 0}
-            </p>
+      {/* Summary Stats Row */}
+      <div className="stats">
+        <div className="stat hero">
+          <div className="lbl">
+            <Wallet className="ico" /> Total Udhaar
           </div>
-          <div className="w-12 h-12 rounded-full bg-red-400/10 flex items-center justify-center text-red-400">
-            <Wallet className="w-6 h-6" />
+          <div className="val">{formatCurrency(totalReceivables)}</div>
+          <div className="meta">
+            Outstanding across {topDebtors.length} debtor{topDebtors.length === 1 ? '' : 's'}
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm font-medium">Sales Today</p>
-            <p className="text-3xl font-bold text-green-400 mt-2">
-              Rs {stats?.totalSalesToday?.toLocaleString() || 0}
-            </p>
+        <div className="stat">
+          <div className="lbl">
+            <TrendingUp className="ico" /> Sales Today
           </div>
-          <div className="w-12 h-12 rounded-full bg-green-400/10 flex items-center justify-center text-green-400">
-            <TrendingUp className="w-6 h-6" />
+          <div className="val">{formatCurrency(totalSalesToday)}</div>
+          <div className="meta">{formatCurrency(weekTotal)} this week</div>
+        </div>
+
+        <div className="stat">
+          <div className="lbl">
+            <Users className="ico" /> Customers
+          </div>
+          <div className="val">{customerCount}</div>
+          <div className="meta">
+            {stats?.lowStockItemCount || 0} low-stock item
+            {(stats?.lowStockItemCount || 0) === 1 ? '' : 's'}
           </div>
         </div>
       </div>
 
-      {/* Chart Section */}
-      {stats?.salesLast7Days && stats.salesLast7Days.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-white mb-6">Sales - Last 7 Days</h3>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.salesLast7Days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#22396f" vertical={false} />
-                <XAxis dataKey="displayDate" stroke="#8b9fc6" axisLine={false} tickLine={false} />
-                <YAxis stroke="#8b9fc6" axisLine={false} tickLine={false} tickFormatter={(value) => `Rs ${value}`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0d1c42', borderColor: '#22396f', borderRadius: '0.5rem', color: '#fcf1d0' }}
-                  itemStyle={{ color: '#4ade80' }}
-                  formatter={(value) => [`Rs ${value}`, 'Sales']}
-                />
-                <Bar dataKey="sales" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* Lists Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Low Stock Alerts */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-400" /> Low Stock Alerts
-            </h3>
-            {stats?.lowStockItemCount > 0 && (
-              <span className="bg-amber-500/20 text-amber-400 text-xs font-bold px-2.5 py-1 rounded-full">
-                {stats.lowStockItemCount} Items
-              </span>
-            )}
-          </div>
-          
-          <div className="flex-1 overflow-y-auto max-h-80 pr-2">
-            {!stats?.lowStockItems || stats.lowStockItems.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center py-10">
-                <CheckCircle className="w-12 h-12 text-emerald-400 mb-3" />
-                <p className="text-slate-400 font-medium">No low stock items</p>
-                <p className="text-slate-500 text-sm mt-1">Your inventory is looking good!</p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {stats.lowStockItems.map(item => (
-                  <li key={item._id} className="flex justify-between items-center p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                    <div>
-                      <p className="text-white font-medium">{item.name}</p>
-                      <p className="text-slate-400 text-xs">SKU: {item.sku}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-amber-400 font-bold">{item.stockQuantity} left</p>
-                      <p className="text-slate-500 text-xs">Min: {item.lowStockThreshold}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          <div className="mt-4 pt-4 border-t border-slate-800">
-            <Link to="/inventory" className="text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center justify-center w-full transition-colors">
-              Manage Inventory →
-            </Link>
+      {/* 2-Column Grid: 7-Day Chart & Low Stock */}
+      <div className="grid-2">
+        <div className="card">
+          <h3>Sales · last 7 days</h3>
+          <div className="bars">
+            {salesDays.map((d, i) => {
+              const isToday = i === salesDays.length - 1;
+              const heightPct = Math.max(6, ((d.sales || 0) / maxSale) * 100);
+              return (
+                <div
+                  key={d.date || i}
+                  className={`bar ${isToday ? 'today' : ''}`}
+                  title={`${d.displayDate}: ${formatCurrency(d.sales || 0)}`}
+                >
+                  <i
+                    style={{
+                      height: `${heightPct}%`,
+                      animationDelay: `${i * 60}ms`
+                    }}
+                  />
+                  <span>{isToday ? 'Today' : d.displayDate?.split(' ')[0] || d.displayDate}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Top Debtors */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-400" /> Top Debtors
+        <div className="card">
+          <h3>
+            Low stock alerts{' '}
+            {lowStockItems.length > 0 && (
+              <Link className="badge warn" to="/inventory">
+                {lowStockItems.length} item{lowStockItems.length > 1 ? 's' : ''}
+              </Link>
+            )}
           </h3>
-          
-          <div className="flex-1 overflow-y-auto max-h-80 pr-2">
-            {!stats?.topDebtors || stats.topDebtors.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center py-10">
-                <CheckCircle className="w-12 h-12 text-emerald-400 mb-3" />
-                <p className="text-slate-400 font-medium">No outstanding udhaar</p>
-                <p className="text-slate-500 text-sm mt-1">All customers have cleared their dues.</p>
+
+          {lowStockItems.length > 0 ? (
+            <div className="list">
+              {lowStockItems.slice(0, 5).map((p) => (
+                <Link
+                  key={p._id}
+                  className="li"
+                  to="/inventory"
+                >
+                  <div className="grow">
+                    <b>{p.name}</b>
+                    <small>SKU: {p.sku}</small>
+                  </div>
+                  <span className="badge warn">
+                    <AlertTriangle className="w-3.5 h-3.5" /> {p.stockQuantity} left
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="empty">
+              <div className="em-ico">
+                <CheckCircle2 className="w-6 h-6 text-[var(--ok)]" />
               </div>
-            ) : (
-              <ul className="space-y-3">
-                {stats.topDebtors.map(customer => (
-                  <li key={customer._id} className="flex justify-between items-center p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800 transition-colors">
-                    <div>
-                      <p className="text-white font-medium">{customer.name}</p>
-                      <p className="text-slate-400 text-xs">{customer.phone}</p>
-                    </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <p className="text-red-400 font-bold">Rs {customer.totalBalance.toLocaleString()}</p>
-                      <Link 
-                        to={`/customers/${customer._id}`}
-                        className="text-indigo-400 hover:text-indigo-300 text-xs font-medium px-2 py-1 bg-indigo-500/10 rounded-lg transition-colors"
-                      >
-                        View Khata
-                      </Link>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          <div className="mt-4 pt-4 border-t border-slate-800">
-            <Link to="/customers" className="text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center justify-center w-full transition-colors">
-              View All Customers →
-            </Link>
-          </div>
+              <b>No low stock items</b>
+              Everything is well stocked.
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Top Debtors List Card */}
+      <div className="card mt-4">
+        <h3>
+          Top debtors{' '}
+          {topDebtors.length > 0 && (
+            <Link className="btn-ghost btn btn-sm" to="/customers">
+              View all
+            </Link>
+          )}
+        </h3>
+
+        {topDebtors.length > 0 ? (
+          <div className="list">
+            {topDebtors.map((x, i) => (
+              <Link
+                key={x._id}
+                className="li"
+                to={`/customers/${x._id}`}
+              >
+                <div className="rank">{i + 1}</div>
+                <div
+                  className="av"
+                  style={{
+                    background: colorFor(x.name),
+                    width: '38px',
+                    height: '38px',
+                    fontSize: '0.8rem',
+                    borderRadius: '12px'
+                  }}
+                >
+                  {initials(x.name)}
+                </div>
+                <div className="grow">
+                  <b>{x.name}</b>
+                  <small>{x.phone}</small>
+                </div>
+                <b style={{ fontFamily: 'var(--display)' }}>
+                  {formatCurrency(x.totalBalance)}
+                </b>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="empty">
+            <div className="em-ico">
+              <CheckCircle2 className="w-6 h-6 text-[var(--ok)]" />
+            </div>
+            <b>No outstanding udhaar</b>
+            Your customers are all settled up.
+          </div>
+        )}
       </div>
     </div>
   );

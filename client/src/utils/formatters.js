@@ -29,3 +29,31 @@ export const formatDate = (dateInput) => {
 
   return `${day}-${month}-${year}`;
 };
+
+export const COLORS = [
+  '#0B6B5D',
+  '#7B5EA7',
+  '#C2570C',
+  '#1D6FB8',
+  '#B4325A',
+  '#4D7C0F',
+  '#8A6D1F'
+];
+
+export const colorFor = (s) => {
+  if (!s) return COLORS[0];
+  const charSum = [...s].reduce((a, c) => a + c.charCodeAt(0), 0);
+  return COLORS[charSum % COLORS.length];
+};
+
+export const initials = (n) => {
+  if (!n) return 'S';
+  return n
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+};
+

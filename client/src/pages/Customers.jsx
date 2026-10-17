@@ -3,27 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { toast } from 'react-hot-toast';
-import { Users, Search, Edit2, Trash2 } from 'lucide-react';
-
+import { Search, Plus, ChevronRight, Edit2, Trash2, Users } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { formatCurrency, colorFor, initials } from '../utils/formatters';
 
 const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const debouncedSearch = useDebounce(search, 500);
+  const debouncedSearch = useDebounce(search, 400);
   const navigate = useNavigate();
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  
+
   // Form states
   const [formData, setFormData] = useState({ name: '', phone: '', address: '' });
   const [formLoading, setFormLoading] = useState(false);
@@ -44,7 +44,7 @@ const Customers = () => {
       });
       setCustomers(response.data.data || []);
     } catch (error) {
-      toast.error('Failed to load customers');
+      toast.error(error.message || 'Failed to load customers');
     } finally {
       setLoading(false);
     }
@@ -57,10 +57,14 @@ const Customers = () => {
   };
 
   const openEditModal = (e, customer) => {
-    e.stopPropagation(); // prevent navigation to statement
+    e.stopPropagation();
     setModalMode('edit');
     setSelectedCustomer(customer);
-    setFormData({ name: customer.name, phone: customer.phone || '', address: customer.address || '' });
+    setFormData({
+      name: customer.name,
+      phone: customer.phone || '',
+      address: customer.address || ''
+    });
     setIsModalOpen(true);
   };
 
@@ -77,19 +81,19 @@ const Customers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone) {
+    if (!formData.name.trim() || !formData.phone.trim()) {
       toast.error('Name and Phone are required');
       return;
     }
-    
+
     setFormLoading(true);
     try {
       if (modalMode === 'add') {
         await api.post('/customers', formData);
-        toast.success('Customer added successfully');
+        toast.success('Customer added to khata');
       } else {
         await api.put(`/customers/${selectedCustomer._id}`, formData);
-        toast.success('Customer updated successfully');
+        toast.success('Customer details updated');
       }
       handleModalClose();
       fetchCustomers();
@@ -104,7 +108,7 @@ const Customers = () => {
     setDeleteLoading(true);
     try {
       await api.delete(`/customers/${customerToDelete._id}`);
-      toast.success('Customer deleted');
+      toast.success('Customer removed from khata');
       setIsDeleteOpen(false);
       fetchCustomers();
     } catch (error) {
@@ -114,149 +118,197 @@ const Customers = () => {
     }
   };
 
-  const navigateToStatement = (id) => {
-    navigate(`/customers/${id}`);
-  };
+  const totalOutstanding = customers.reduce(
+    (sum, c) => sum + (c.totalBalance > 0 ? c.totalBalance : 0),
+    0
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="view">
+      {/* Page Header */}
+      <div className="page-head">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Khata (Customers)</h2>
-          <p className="text-sm text-slate-400">Manage your customers and track their balances</p>
+          <h1>Manage Khata</h1>
+          <p>
+            {customers.length} customer{customers.length === 1 ? '' : 's'} ·{' '}
+            {formatCurrency(totalOutstanding)} outstanding
+          </p>
         </div>
-        <Button onClick={openAddModal}>
-          + Add Customer
+        <Button onClick={openAddModal} className="add-btn">
+          <Plus className="ico" />
+          <span className="hide-sm">Add Customer</span>
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <Search className="w-5 h-5" />
-        </div>
+      {/* Search Bar */}
+      <div className="searchbox mb-5">
+        <Search className="ico" />
         <input
-          type="text"
-          placeholder="Search by name or phone..."
-          className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+          className="input"
+          placeholder="Search by Name or Phone…"
+          autoComplete="off"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
+      {/* Customers List / Grid */}
       {loading ? (
         <div className="py-20 flex justify-center">
           <Spinner />
         </div>
       ) : customers.length === 0 ? (
-        <EmptyState 
-          icon={<Users />}
-          title={search ? 'No matches found' : 'No customers yet'}
-          description={search ? `No customer matched "${search}"` : 'Add your first customer to start tracking khata'}
-          actionLabel={search ? '' : 'Add Customer'}
+        <EmptyState
+          icon={Users}
+          title={search ? 'No customers found' : 'No customers yet'}
+          description={
+            search
+              ? 'Try searching with a different name or phone number.'
+              : 'Add your first customer to begin tracking your digital khata.'
+          }
+          actionLabel={search ? '' : '+ Add Customer'}
           onAction={search ? undefined : openAddModal}
         />
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-800/50 text-slate-400 text-sm font-medium border-b border-slate-800">
-                  <th className="p-4">Customer Name</th>
-                  <th className="p-4">Contact</th>
-                  <th className="p-4 text-right">Balance (Rs)</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50">
-                {customers.map((customer) => (
-                  <tr 
-                    key={customer._id} 
-                    className="hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                    onClick={() => navigateToStatement(customer._id)}
+        <div className="cards">
+          {customers.map((c) => {
+            const hasDue = c.totalBalance > 0;
+            const hasAdvance = c.totalBalance < 0;
+
+            return (
+              <div
+                key={c._id}
+                className="ccard group relative cursor-pointer"
+                onClick={() => navigate(`/customers/${c._id}`)}
+              >
+                <div
+                  className="av"
+                  style={{ background: colorFor(c.name) }}
+                >
+                  {initials(c.name)}
+                </div>
+
+                <div className="grow">
+                  <b>{c.name}</b>
+                  <small>{c.phone}</small>
+                </div>
+
+                <div className="bal">
+                  <strong
+                    style={{
+                      color: hasDue
+                        ? 'var(--danger)'
+                        : hasAdvance
+                        ? 'var(--warn)'
+                        : 'var(--ok)'
+                    }}
                   >
-                    <td className="p-4">
-                      <div className="font-semibold text-slate-100">{customer.name}</div>
-                      <div className="text-xs text-slate-500 md:hidden">{customer.phone}</div>
-                    </td>
-                    <td className="p-4 hidden md:table-cell text-slate-300">
-                      <div>{customer.phone}</div>
-                      {customer.address && <div className="text-xs text-slate-500 mt-0.5">{customer.address}</div>}
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className={`font-bold ${customer.totalBalance > 0 ? 'text-emerald-400' : customer.totalBalance < 0 ? 'text-red-400' : 'text-slate-300'}`}>
-                        {Math.abs(customer.totalBalance).toLocaleString()} {customer.totalBalance > 0 ? ' Adv' : customer.totalBalance < 0 ? ' Due' : ''}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right space-x-2">
-                      <button 
-                        className="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        onClick={(e) => openEditModal(e, customer)}
-                        title="Edit"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button 
-                        className="text-slate-400 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        onClick={(e) => openDeleteConfirm(e, customer)}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {hasDue
+                      ? formatCurrency(c.totalBalance)
+                      : hasAdvance
+                      ? `${formatCurrency(Math.abs(c.totalBalance))} Adv`
+                      : 'Settled'}
+                  </strong>
+                  <span>
+                    View <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+
+                {/* Hover Action Buttons */}
+                <div
+                  className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--surface)]/90 p-1 rounded-lg backdrop-blur-sm border border-[var(--line)] shadow-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => openEditModal(e, c)}
+                    className="p-1.5 text-[var(--muted)] hover:text-[var(--brand)] rounded transition-colors"
+                    title="Edit Customer"
+                    aria-label="Edit customer"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => openDeleteConfirm(e, c)}
+                    className="p-1.5 text-[var(--muted)] hover:text-[var(--danger)] rounded transition-colors"
+                    title="Delete Customer"
+                    aria-label="Delete customer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={handleModalClose} 
-        title={modalMode === 'add' ? 'Add Customer' : 'Edit Customer'}
+      {/* Add / Edit Customer Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        title={modalMode === 'add' ? 'New Customer' : 'Edit Customer'}
+        subtitle={
+          modalMode === 'add'
+            ? 'Add someone to your khata.'
+            : 'Update customer contact details.'
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input 
-            label="Full Name" 
+        <form onSubmit={handleSubmit} noValidate>
+          <Input
+            label="Full name"
             id="name"
+            placeholder="e.g. Kamran Raza"
             value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
-            placeholder="John Doe"
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
           />
-          <Input 
-            label="Phone Number" 
+
+          <Input
+            label="Phone number"
             id="phone"
+            type="tel"
+            inputMode="tel"
+            placeholder="03XX-XXXXXXX"
             value={formData.phone}
-            onChange={(e) => setFormData({...formData, phone: e.target.value})}
-            placeholder="03001234567"
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             required
           />
-          <Input 
-            label="Address (Optional)" 
+
+          <Input
+            label="Address (optional)"
             id="address"
+            placeholder="e.g. Shop 42, Main Market"
             value={formData.address}
-            onChange={(e) => setFormData({...formData, address: e.target.value})}
-            placeholder="Main Market, Shop 42"
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
           />
-          <div className="pt-4 flex justify-end space-x-3">
-            <Button type="button" variant="ghost" onClick={handleModalClose} disabled={formLoading}>
+
+          <div className="btns">
+            <Button
+              type="button"
+              variant="soft"
+              onClick={handleModalClose}
+              disabled={formLoading}
+            >
               Cancel
             </Button>
             <Button type="submit" isLoading={formLoading}>
-              {modalMode === 'add' ? 'Add Customer' : 'Save Changes'}
+              Save
             </Button>
           </div>
         </form>
       </Modal>
 
+      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Customer"
-        message={`Are you sure you want to delete ${customerToDelete?.name}? This action cannot be undone and will delete all their transactions.`}
+        title="Delete customer?"
+        message={`"${customerToDelete?.name}" will be removed from your khata along with their transaction history.`}
+        confirmText="Delete"
+        isDanger={true}
         isLoading={deleteLoading}
       />
     </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, subtitle, children }) => {
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -10,13 +11,12 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      // Prevent body scrolling
       document.body.style.overflow = 'hidden';
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
 
@@ -30,25 +30,29 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+      className="overlay"
       onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
     >
       <div 
         ref={modalRef}
-        className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
+        className="sheet relative"
       >
-        <div className="flex items-center justify-between p-6 border-b border-slate-800">
-          <h3 className="text-xl font-bold text-white">{title}</h3>
+        <div className="grab" />
+        <div className="flex items-center justify-between mb-2">
+          {title && <h2>{title}</h2>}
           <button 
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800"
+            className="icon-btn !w-8 !h-8 !border-0 text-[var(--muted)] hover:text-[var(--ink)] ml-auto"
+            aria-label="Close"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">
+        {subtitle && <p className="sub">{subtitle}</p>}
+        <div>
           {children}
         </div>
       </div>

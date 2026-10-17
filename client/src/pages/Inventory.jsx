@@ -2,35 +2,35 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { toast } from 'react-hot-toast';
-import { Package, Search, Edit2, Trash2 } from 'lucide-react';
-
+import { Search, Plus, Edit2, Trash2, AlertTriangle, Package } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { formatCurrency } from '../utils/formatters';
 
 const Inventory = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [lowStockFilter, setLowStockFilter] = useState(false);
-  const debouncedSearch = useDebounce(search, 500);
+  const [filterLowStock, setFilterLowStock] = useState(false);
+  const debouncedSearch = useDebounce(search, 400);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
+
   // Form states
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    sku: '', 
-    price: '', 
-    costPrice: '', 
-    stockQuantity: '', 
-    lowStockThreshold: '' 
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: '',
+    price: '',
+    costPrice: '',
+    stockQuantity: '',
+    lowStockThreshold: '10'
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -41,18 +41,19 @@ const Inventory = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [debouncedSearch, lowStockFilter]);
+  }, [debouncedSearch, filterLowStock]);
 
   const fetchProducts = async () => {
     try {
       const response = await api.get('/products', {
-        params: { 
+        params: {
           search: debouncedSearch,
-          lowStock: lowStockFilter ? 'true' : undefined
+          lowStock: filterLowStock ? 'true' : undefined,
+          limit: 1000
         }
       });
       setProducts(response.data.data || []);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load inventory');
     } finally {
       setLoading(false);
@@ -61,13 +62,13 @@ const Inventory = () => {
 
   const openAddModal = () => {
     setModalMode('add');
-    setFormData({ 
-      name: '', 
-      sku: '', 
-      price: '', 
-      costPrice: '', 
-      stockQuantity: '', 
-      lowStockThreshold: '10' 
+    setFormData({
+      name: '',
+      sku: '',
+      price: '',
+      costPrice: '',
+      stockQuantity: '',
+      lowStockThreshold: '10'
     });
     setIsModalOpen(true);
   };
@@ -75,13 +76,13 @@ const Inventory = () => {
   const openEditModal = (product) => {
     setModalMode('edit');
     setSelectedProduct(product);
-    setFormData({ 
-      name: product.name, 
-      sku: product.sku || '', 
-      price: product.price, 
-      costPrice: product.costPrice || '', 
-      stockQuantity: product.stockQuantity, 
-      lowStockThreshold: product.lowStockThreshold || 10 
+    setFormData({
+      name: product.name,
+      sku: product.sku || '',
+      price: String(product.price),
+      costPrice: product.costPrice ? String(product.costPrice) : '',
+      stockQuantity: String(product.stockQuantity),
+      lowStockThreshold: String(product.lowStockThreshold || 10)
     });
     setIsModalOpen(true);
   };
@@ -98,28 +99,46 @@ const Inventory = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || formData.price === '' || formData.stockQuantity === '') {
-      toast.error('Name, Price, and Stock are required');
+
+    if (!formData.name.trim() || !formData.sku.trim()) {
+      toast.error('Product name and SKU are required');
       return;
     }
-    
+
+    const price = parseFloat(formData.price);
+    const stockQuantity = parseInt(formData.stockQuantity, 10);
+    const lowStockThreshold = parseInt(formData.lowStockThreshold, 10) || 10;
+    const costPrice = formData.costPrice ? parseFloat(formData.costPrice) : 0;
+
+    if (isNaN(price) || price < 0) {
+      toast.error('Enter a valid price');
+      return;
+    }
+
+    if (isNaN(stockQuantity) || stockQuantity < 0) {
+      toast.error('Enter a valid stock quantity');
+      return;
+    }
+
     setFormLoading(true);
     try {
       const payload = {
-        ...formData,
-        price: Number(formData.price),
-        costPrice: formData.costPrice !== '' ? Number(formData.costPrice) : undefined,
-        stockQuantity: Number(formData.stockQuantity),
-        lowStockThreshold: formData.lowStockThreshold !== '' ? Number(formData.lowStockThreshold) : 10
+        name: formData.name.trim(),
+        sku: formData.sku.trim().toUpperCase(),
+        price,
+        costPrice,
+        stockQuantity,
+        lowStockThreshold
       };
 
       if (modalMode === 'add') {
         await api.post('/products', payload);
-        toast.success('Product added successfully');
+        toast.success('Product added to inventory');
       } else {
         await api.put(`/products/${selectedProduct._id}`, payload);
-        toast.success('Product updated successfully');
+        toast.success('Product updated');
       }
+
       handleModalClose();
       fetchProducts();
     } catch (error) {
@@ -133,7 +152,7 @@ const Inventory = () => {
     setDeleteLoading(true);
     try {
       await api.delete(`/products/${productToDelete._id}`);
-      toast.success('Product deleted');
+      toast.success('Product removed');
       setIsDeleteOpen(false);
       fetchProducts();
     } catch (error) {
@@ -143,194 +162,232 @@ const Inventory = () => {
     }
   };
 
+  const lowStockCount = products.filter(
+    (p) => p.stockQuantity <= (p.lowStockThreshold || 5)
+  ).length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="view">
+      {/* Page Header */}
+      <div className="page-head">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Inventory</h2>
-          <p className="text-sm text-slate-400">Manage your products and stock levels</p>
+          <h1>Manage Inventory</h1>
+          <p>
+            {products.length} product{products.length === 1 ? '' : 's'} ·{' '}
+            {lowStockCount} low on stock
+          </p>
         </div>
-        <Button onClick={openAddModal}>
-          + Add Product
+        <Button onClick={openAddModal} className="add-btn">
+          <Plus className="ico" />
+          <span className="hide-sm">Add Product</span>
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative w-full max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <Search className="w-5 h-5" />
-          </div>
+      {/* Search Bar & Low-stock filter toggle */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="searchbox flex-1">
+          <Search className="ico" />
           <input
-            type="text"
-            placeholder="Search by name or SKU..."
-            className="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+            className="input"
+            placeholder="Search by Name or SKU…"
+            autoComplete="off"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        
-        <label className="flex items-center space-x-2 text-slate-300 cursor-pointer self-start sm:self-center">
-          <input 
-            type="checkbox" 
-            className="form-checkbox h-5 w-5 text-indigo-500 rounded border-slate-700 bg-slate-900 focus:ring-indigo-500 focus:ring-offset-slate-950 transition-colors"
-            checked={lowStockFilter}
-            onChange={(e) => setLowStockFilter(e.target.checked)}
-          />
-          <span className="text-sm font-medium">Low stock only</span>
-        </label>
+
+        <button
+          type="button"
+          className={`btn ${filterLowStock ? 'btn-primary' : 'btn-soft'}`}
+          onClick={() => setFilterLowStock(!filterLowStock)}
+        >
+          <AlertTriangle className="w-4 h-4" />
+          <span>Low stock only</span>
+        </button>
       </div>
 
+      {/* Product List / Cards */}
       {loading ? (
         <div className="py-20 flex justify-center">
           <Spinner />
         </div>
       ) : products.length === 0 ? (
-        <EmptyState 
-          icon={<Package />}
-          title={search ? 'No matches found' : 'No products yet'}
-          description={search ? `No product matched "${search}"` : 'Add your first product to start tracking inventory'}
-          actionLabel={search ? '' : 'Add Product'}
+        <EmptyState
+          icon={Package}
+          title={search ? 'No products found' : 'No products yet'}
+          description={
+            search
+              ? 'Try searching with a different product name or SKU.'
+              : 'Add your first item to stock your inventory.'
+          }
+          actionLabel={search ? '' : '+ Add Product'}
           onAction={search ? undefined : openAddModal}
         />
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-800/50 text-slate-400 text-sm font-medium border-b border-slate-800">
-                  <th className="p-4">Product Name</th>
-                  <th className="p-4 hidden sm:table-cell">SKU</th>
-                  <th className="p-4 text-right">Price (Rs)</th>
-                  <th className="p-4 text-right">Stock</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50">
-                {products.map((product) => {
-                  const isLowStock = product.stockQuantity <= (product.lowStockThreshold || 10);
-                  
-                  return (
-                    <tr key={product._id} className="hover:bg-slate-800/30 transition-colors group">
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-slate-100">{product.name}</span>
-                          {isLowStock && (
-                            <span title="Low Stock" className="text-amber-500 flex items-center">
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                              </svg>
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-slate-500 sm:hidden">{product.sku || 'N/A'}</div>
-                      </td>
-                      <td className="p-4 hidden sm:table-cell text-slate-400 text-sm">
-                        {product.sku || '-'}
-                      </td>
-                      <td className="p-4 text-right font-medium text-slate-200">
-                        {product.price.toLocaleString()}
-                      </td>
-                      <td className="p-4 text-right">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          isLowStock ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-300'
-                        }`}>
-                          {product.stockQuantity}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right space-x-2">
-                        <button 
-                          className="text-slate-400 hover:text-indigo-400 transition-colors p-2 rounded-lg hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          onClick={() => openEditModal(product)}
-                          title="Edit"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button 
-                          className="text-slate-400 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          onClick={() => openDeleteConfirm(product)}
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        <div className="cards">
+          {products.map((p) => {
+            const threshold = p.lowStockThreshold || 5;
+            const isLow = p.stockQuantity <= threshold;
+            const maxCap = Math.max(threshold * 3, 30);
+            const pct = Math.min(100, (p.stockQuantity / maxCap) * 100);
+
+            return (
+              <div
+                key={p._id}
+                className={`ccard pcard ${isLow ? 'low' : ''}`}
+              >
+                <div className="top">
+                  <div>
+                    <b>{p.name}</b>
+                    <small>SKU: {p.sku}</small>
+                  </div>
+                  {isLow ? (
+                    <span className="badge warn">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Low
+                    </span>
+                  ) : (
+                    <span className="badge ok">In stock</span>
+                  )}
+                </div>
+
+                <div className="pmeta">
+                  <div>
+                    <small>Price</small>
+                    <strong>{formatCurrency(p.price)}</strong>
+                  </div>
+                  <div>
+                    <small>Stock</small>
+                    <strong style={{ color: isLow ? 'var(--warn)' : 'inherit' }}>
+                      {p.stockQuantity}
+                    </strong>
+                    <div className="stockbar">
+                      <i style={{ width: `${Math.max(4, pct)}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="acts">
+                  <button
+                    type="button"
+                    className="btn btn-soft btn-sm"
+                    onClick={() => openEditModal(p)}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft btn-sm !text-[var(--danger)] hover:!bg-[var(--danger-bg)]"
+                    onClick={() => openDeleteConfirm(p)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={handleModalClose} 
-        title={modalMode === 'add' ? 'Add Product' : 'Edit Product'}
+      {/* Add / Edit Product Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        title={modalMode === 'add' ? 'New Product' : 'Edit Product'}
+        subtitle={
+          modalMode === 'add'
+            ? 'Add an item to your inventory.'
+            : 'Update details and stock quantity.'
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input 
-            label="Product Name" 
+        <form onSubmit={handleSubmit} noValidate>
+          <Input
+            label="Product name"
             id="name"
+            placeholder="e.g. Cooking Oil 5L"
             value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
-            placeholder="Milk 1L"
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
           />
-          <Input 
-            label="SKU / Barcode" 
+
+          <Input
+            label="SKU"
             id="sku"
+            placeholder="e.g. OIL-02"
             value={formData.sku}
-            onChange={(e) => setFormData({...formData, sku: e.target.value})}
-            placeholder="MLK-001"
+            onChange={(e) =>
+              setFormData({ ...formData, sku: e.target.value.toUpperCase() })
+            }
+            required
           />
-          <div className="grid grid-cols-2 gap-4">
-            <Input 
-              label="Selling Price (Rs)" 
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Selling Price (Rs.)"
               id="price"
               type="number"
               min="0"
-              step="any"
+              inputMode="numeric"
+              placeholder="500"
               value={formData.price}
-              onChange={(e) => setFormData({...formData, price: e.target.value})}
-              placeholder="150"
+              onChange={(e) =>
+                setFormData({ ...formData, price: e.target.value })
+              }
               required
             />
-            <Input 
-              label="Cost Price (Optional)" 
+
+            <Input
+              label="Current Stock"
+              id="stockQuantity"
+              type="number"
+              min="0"
+              inputMode="numeric"
+              placeholder="20"
+              value={formData.stockQuantity}
+              onChange={(e) =>
+                setFormData({ ...formData, stockQuantity: e.target.value })
+              }
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Cost Price (optional)"
               id="costPrice"
               type="number"
               min="0"
-              step="any"
+              inputMode="numeric"
+              placeholder="420"
               value={formData.costPrice}
-              onChange={(e) => setFormData({...formData, costPrice: e.target.value})}
-              placeholder="135"
+              onChange={(e) =>
+                setFormData({ ...formData, costPrice: e.target.value })
+              }
             />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input 
-              label="Current Stock" 
-              id="stockQuantity"
-              type="number"
-              value={formData.stockQuantity}
-              onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})}
-              placeholder="50"
-              required
-            />
-            <Input 
-              label="Low Stock Warning At" 
+
+            <Input
+              label="Low Stock Alert Min"
               id="lowStockThreshold"
               type="number"
-              value={formData.lowStockThreshold}
-              onChange={(e) => setFormData({...formData, lowStockThreshold: e.target.value})}
+              min="1"
+              inputMode="numeric"
               placeholder="10"
+              value={formData.lowStockThreshold}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  lowStockThreshold: e.target.value
+                })
+              }
             />
           </div>
-          <div className="pt-4 flex justify-end space-x-3">
-            <Button type="button" variant="ghost" onClick={handleModalClose} disabled={formLoading}>
+
+          <div className="btns">
+            <Button
+              type="button"
+              variant="soft"
+              onClick={handleModalClose}
+              disabled={formLoading}
+            >
               Cancel
             </Button>
             <Button type="submit" isLoading={formLoading}>
@@ -340,12 +397,15 @@ const Inventory = () => {
         </form>
       </Modal>
 
+      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Product"
-        message={`Are you sure you want to delete ${productToDelete?.name}? This action cannot be undone.`}
+        title="Delete product?"
+        message={`“${productToDelete?.name}” will be permanently removed from your inventory.`}
+        confirmText="Delete"
+        isDanger={true}
         isLoading={deleteLoading}
       />
     </div>
