@@ -21,13 +21,13 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Create user
+    // Create user (Public registration defaults to Shop Owner)
     const user = await User.create({
       name,
       email: normalizedEmail,
       passwordHash: password,
       shopName,
-      ...(role ? { role } : {})
+      role: role || 'Owner'
     });
 
     // Generate token

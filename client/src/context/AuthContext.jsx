@@ -63,7 +63,8 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData);
+      const payload = { role: 'Owner', ...userData };
+      const response = await api.post('/auth/register', payload);
       const { token: newToken, user: newUser, role } = response.data;
       const userWithRole = { ...newUser, role: newUser?.role || role || 'Owner' };
       
