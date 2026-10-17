@@ -3,13 +3,14 @@ import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
-import { Plus, Trash2, Package, Wrench } from 'lucide-react';
-import { formatCurrency } from '../utils/formatters';
+import { Plus, Trash2, Info, Package, Wrench } from 'lucide-react';
+import { fmt } from '../utils/formatters';
 
 const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }) => {
   const [isInventorySale, setIsInventorySale] = useState(true);
   const [products, setProducts] = useState([]);
   const [items, setItems] = useState([{ productId: '', quantity: 1 }]);
+  const [serviceDescription, setServiceDescription] = useState('');
   const [serviceAmount, setServiceAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
       fetchProducts();
       setIsInventorySale(true);
       setItems([{ productId: '', quantity: 1 }]);
+      setServiceDescription('');
       setServiceAmount('');
       setNotes('');
       setErrorMessage('');
@@ -98,21 +100,27 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
           items: validItems,
           notes: notes.trim()
         });
-        toast.success(`Inventory sale of ${formatCurrency(calculateProductTotal())} recorded`);
-        onSaleAdded();
+        toast.success(`Inventory sale of ${fmt(calculateProductTotal())} recorded`);
+        if (onSaleAdded) onSaleAdded();
         onClose();
       } catch (error) {
-        setErrorMessage(error.message || 'Failed to record sale');
+        setErrorMessage(error.response?.data?.message || error.message || 'Failed to record sale');
       } finally {
         setLoading(false);
       }
     } else {
-      // Service Sale
+      // Service Sale (isInventorySale: false)
       const parsedAmount = Number(serviceAmount);
       if (!parsedAmount || parsedAmount <= 0) {
         setErrorMessage('Please enter a service sale amount greater than 0.');
         return;
       }
+
+      const combinedNotes = serviceDescription.trim()
+        ? notes.trim()
+          ? `${serviceDescription.trim()} - ${notes.trim()}`
+          : serviceDescription.trim()
+        : notes.trim();
 
       setLoading(true);
       try {
@@ -120,13 +128,13 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
           customerId,
           isInventorySale: false,
           amount: parsedAmount,
-          notes: notes.trim()
+          notes: combinedNotes
         });
-        toast.success(`Service sale of ${formatCurrency(parsedAmount)} recorded`);
-        onSaleAdded();
+        toast.success(`Service sale of ${fmt(parsedAmount)} recorded`);
+        if (onSaleAdded) onSaleAdded();
         onClose();
       } catch (error) {
-        setErrorMessage(error.message || 'Failed to record service sale');
+        setErrorMessage(error.response?.data?.message || error.message || 'Failed to record service sale');
       } finally {
         setLoading(false);
       }
@@ -144,39 +152,31 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
           : 'Record credit sale'
       }
     >
-      {/* Sale Type Selector */}
-      <div className="grid grid-cols-2 gap-2 mb-4 p-1 bg-[var(--surface2)] border border-[var(--line)] rounded-xl">
-        <button
-          type="button"
-          className={`py-2 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${
-            isInventorySale
-              ? 'bg-[var(--brand)] text-[var(--on-brand)] shadow-sm'
-              : 'text-[var(--muted)] hover:text-[var(--ink)]'
-          }`}
-          onClick={() => {
-            setIsInventorySale(true);
-            setErrorMessage('');
-          }}
-        >
-          <Package className="w-4 h-4" />
-          <span>Product Sale</span>
-        </button>
-
-        <button
-          type="button"
-          className={`py-2 px-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${
-            !isInventorySale
-              ? 'bg-[var(--brand)] text-[var(--on-brand)] shadow-sm'
-              : 'text-[var(--muted)] hover:text-[var(--ink)]'
-          }`}
-          onClick={() => {
-            setIsInventorySale(false);
-            setErrorMessage('');
-          }}
-        >
-          <Wrench className="w-4 h-4" />
-          <span>Service Sale</span>
-        </button>
+      {/* Sale Type Segmented Control Toggle */}
+      <div className="field mb-4">
+        <span>Sale Type</span>
+        <div className="seg lg" role="group" aria-label="Sale Type">
+          <button
+            type="button"
+            className={isInventorySale ? 'active' : ''}
+            onClick={() => {
+              setIsInventorySale(true);
+              setErrorMessage('');
+            }}
+          >
+            Inventory Sale
+          </button>
+          <button
+            type="button"
+            className={!isInventorySale ? 'active' : ''}
+            onClick={() => {
+              setIsInventorySale(false);
+              setErrorMessage('');
+            }}
+          >
+            Service Sale
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
@@ -198,7 +198,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
                         value={p._id}
                         disabled={p.stockQuantity < 1}
                       >
-                        {p.name} ({formatCurrency(p.price)})
+                        {p.name} ({fmt(p.price)})
                         {p.stockQuantity < 1 ? ' – Out of stock' : ` [${p.stockQuantity} left]`}
                       </option>
                     ))}
@@ -241,15 +241,36 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
             </button>
           </>
         ) : (
-          <div className="mb-3">
+          <div className="space-y-3 mb-3">
+            <div className="hint info">
+              <Info className="ico flex-none mt-0.5" />
+              <span>
+                No stock is deducted. The full service amount is counted as pure profit.
+              </span>
+            </div>
+
             <label className="field">
-              <span>Service Amount (Rs.)</span>
+              <span>Description</span>
+              <input
+                className="input"
+                type="text"
+                id="service-desc"
+                placeholder="e.g. Tailoring labor, Repair service, Delivery fee"
+                value={serviceDescription}
+                onChange={(e) => setServiceDescription(e.target.value)}
+                required
+              />
+            </label>
+
+            <label className="field">
+              <span>Amount (Rs.)</span>
               <input
                 className="input"
                 type="number"
                 min="1"
-                inputMode="numeric"
-                placeholder="e.g. 1500"
+                step="any"
+                inputMode="decimal"
+                placeholder="0"
                 value={serviceAmount}
                 onChange={(e) => setServiceAmount(e.target.value)}
                 required
@@ -259,18 +280,18 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
         )}
 
         <div className="totalbar">
-          <span>{isInventorySale ? 'Total Product Amount' : 'Total Service Amount'}</span>
-          <strong>{formatCurrency(currentTotal)}</strong>
+          <span>Total Amount</span>
+          <strong>{fmt(currentTotal)}</strong>
         </div>
 
         <label className="field">
-          <span>Notes {isInventorySale ? '(optional)' : '(e.g. Service description)'}</span>
+          <span>Notes (optional)</span>
           <input
             className="input"
             placeholder={
               isInventorySale
                 ? 'e.g. Evening pickup, will clear on Friday'
-                : 'e.g. Tailoring / Alteration fee, Labor service'
+                : 'e.g. Completed today, payment promised next week'
             }
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -284,7 +305,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
             Cancel
           </Button>
           <Button type="submit" isLoading={loading}>
-            Save Sale
+            {loading ? 'Recording...' : 'Save Sale'}
           </Button>
         </div>
       </form>
