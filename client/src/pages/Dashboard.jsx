@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Wallet, TrendingUp, Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Wallet, TrendingUp, Users, AlertTriangle, CheckCircle2, Coins, Receipt, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { formatCurrency, colorFor, initials } from '../utils/formatters';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [customerCount, setCustomerCount] = useState(0);
+  const [selectedRange, setSelectedRange] = useState('today');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,6 +65,14 @@ const Dashboard = () => {
   const weekTotal = salesDays.reduce((acc, curr) => acc + (curr.sales || 0), 0);
   const maxSale = Math.max(...salesDays.map((d) => d.sales || 0), 1);
 
+  const currentMetrics = stats?.breakdown?.[selectedRange] || {
+    totalSales: stats?.totalSales || 0,
+    profitAmount: stats?.profitAmount || 0,
+    grossProfit: stats?.grossProfit || 0,
+    totalExpenses: stats?.totalExpenses || 0,
+    netIncome: stats?.netIncome || 0
+  };
+
   return (
     <div className="view">
       {/* Welcome Header */}
@@ -71,6 +80,86 @@ const Dashboard = () => {
         <div>
           <p>{greet}</p>
           <h1>Welcome, {shopName}</h1>
+        </div>
+      </div>
+
+      {/* Business Intelligence & Profit Overview (Day 3-4 Aggregation Pipeline) */}
+      <div className="card mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--line)]">
+          <div>
+            <h2 className="text-base md:text-lg font-bold">Business Intelligence & Profitability</h2>
+            <p className="text-xs text-[var(--muted)]">Aggregated sales, gross profit, expenses, and net earnings</p>
+          </div>
+          <div className="flex items-center gap-1 p-1 bg-[var(--surface2)] rounded-xl border border-[var(--line)] self-start sm:self-auto">
+            <button
+              type="button"
+              className={`btn btn-sm ${selectedRange === 'today' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setSelectedRange('today')}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${selectedRange === 'week' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setSelectedRange('week')}
+            >
+              This Week
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${selectedRange === 'month' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setSelectedRange('month')}
+            >
+              This Month
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
+            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+              <TrendingUp className="w-4 h-4 text-[var(--brand2)]" /> Total Sales
+            </div>
+            <div className="text-xl md:text-2xl font-bold font-serif text-[var(--ink)]">
+              {formatCurrency(currentMetrics.totalSales)}
+            </div>
+            <div className="text-xs text-[var(--muted)] mt-1">Revenue for selected period</div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
+            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+              <Coins className="w-4 h-4 text-[var(--ok)]" /> Gross Profit
+            </div>
+            <div className="text-xl md:text-2xl font-bold font-serif text-[var(--ok)]">
+              {formatCurrency(currentMetrics.grossProfit)}
+            </div>
+            <div className="text-xs text-[var(--muted)] mt-1">Sales minus product cost</div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[var(--surface2)] border border-[var(--line)]">
+            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+              <Receipt className="w-4 h-4 text-[var(--warn)]" /> Total Expenses
+            </div>
+            <div className="text-xl md:text-2xl font-bold font-serif text-[var(--warn)]">
+              {formatCurrency(currentMetrics.totalExpenses)}
+            </div>
+            <div className="text-xs text-[var(--muted)] mt-1">Operating costs & overhead</div>
+          </div>
+
+          <div className={`p-4 rounded-2xl border ${currentMetrics.netIncome >= 0 ? 'bg-[var(--ok-bg)] border-[var(--ok)]/30' : 'bg-[var(--danger-bg)] border-[var(--danger)]/30'}`}>
+            <div className="lbl flex items-center gap-2 text-xs font-semibold text-[var(--muted)] mb-1 uppercase">
+              {currentMetrics.netIncome >= 0 ? (
+                <ArrowUpRight className="w-4 h-4 text-[var(--ok)]" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-[var(--danger)]" />
+              )}
+              Net Income
+            </div>
+            <div className={`text-xl md:text-2xl font-bold font-serif ${currentMetrics.netIncome >= 0 ? 'text-[var(--ok)]' : 'text-[var(--danger)]'}`}>
+              {formatCurrency(currentMetrics.netIncome)}
+            </div>
+            <div className="text-xs text-[var(--muted)] mt-1">Gross profit minus expenses</div>
+          </div>
         </div>
       </div>
 

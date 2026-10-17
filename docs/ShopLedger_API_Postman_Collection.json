@@ -517,6 +517,62 @@
           }
         }
       ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats (Today)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/stats?range=today",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "stats"],
+              "query": [
+                { "key": "range", "value": "today" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard Stats (Week)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/stats?range=week",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "stats"],
+              "query": [
+                { "key": "range", "value": "week" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard Stats (Month)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/stats?range=month",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "stats"],
+              "query": [
+                { "key": "range", "value": "month" }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
