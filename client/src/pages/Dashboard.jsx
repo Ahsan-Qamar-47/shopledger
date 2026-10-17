@@ -22,31 +22,45 @@ const Dashboard = () => {
   const [customerCount, setCustomerCount] = useState(0);
   const [range, setRange] = useState('today');
   const [loading, setLoading] = useState(true);
+  const [isFetchingRange, setIsFetchingRange] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const statsEndpoint = user?.role === 'Cashier' ? '/dashboard/cashier-stats' : '/dashboard/stats';
+        if (!stats) {
+          setLoading(true);
+        } else {
+          setIsFetchingRange(true);
+        }
+
+        const statsEndpoint =
+          user?.role === 'Cashier'
+            ? '/dashboard/cashier-stats'
+            : `/dashboard/stats?range=${range}`;
+
         const [statsRes, custRes] = await Promise.all([
           api.get(statsEndpoint),
-          api.get('/customers').catch(() => ({ data: { data: [] } }))
+          customerCount === 0
+            ? api.get('/customers').catch(() => ({ data: { data: [] } }))
+            : Promise.resolve(null)
         ]);
 
         if (statsRes.data.success) {
           setStats(statsRes.data.data);
         }
-        if (custRes.data?.data) {
+        if (custRes?.data?.data) {
           setCustomerCount(custRes.data.data.length);
         }
       } catch (error) {
         console.error('Failed to fetch dashboard stats', error);
       } finally {
         setLoading(false);
+        setIsFetchingRange(false);
       }
     };
 
     fetchDashboardData();
-  }, [user?.role]);
+  }, [user?.role, range]);
 
   if (loading) {
     return (
@@ -194,11 +208,11 @@ const Dashboard = () => {
   }
 
   // Owner View: Full Financial Intelligence & Dashboard
-  const currentMetrics = stats?.breakdown?.[range] || {
-    totalSales: stats?.totalSales || 0,
-    grossProfit: stats?.grossProfit || 0,
-    totalExpenses: stats?.totalExpenses || 0,
-    netIncome: stats?.netIncome || 0
+  const currentMetrics = {
+    totalSales: stats?.totalSales ?? stats?.breakdown?.[range]?.totalSales ?? 0,
+    grossProfit: stats?.grossProfit ?? stats?.breakdown?.[range]?.grossProfit ?? 0,
+    totalExpenses: stats?.totalExpenses ?? stats?.breakdown?.[range]?.totalExpenses ?? 0,
+    netIncome: stats?.netIncome ?? stats?.breakdown?.[range]?.netIncome ?? 0
   };
 
   const margin = currentMetrics.totalSales > 0 
@@ -228,14 +242,14 @@ const Dashboard = () => {
             className={range === 'week' ? 'active' : ''}
             onClick={() => setRange('week')}
           >
-            Week
+            This Week
           </button>
           <button
             type="button"
             className={range === 'month' ? 'active' : ''}
             onClick={() => setRange('month')}
           >
-            Month
+            This Month
           </button>
         </div>
       </div>
