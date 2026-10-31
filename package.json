@@ -1,0 +1,35 @@
+{
+  "name": "shopledger-monorepo",
+  "version": "2.0.0",
+  "description": "ShopLedger V2 - Enterprise Digital Khata, Inventory & Profit Intelligence Platform",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start",
+    "test": "npm --prefix server run test",
+    "test:week1": "npm --prefix server run test:week1",
+    "test:week2day1": "npm --prefix server run test:week2day1",
+    "test:week2day2": "npm --prefix server run test:week2day2",
+    "test:week2day3-4": "npm --prefix server run test:week2day3-4",
+    "test:week2day5": "npm --prefix server run test:week2day5",
+    "test:week3day5": "npm --prefix server run test:week3day5",
+    "seed": "npm --prefix server run seed",
+    "ping": "npm --prefix server run ping"
+  },
+  "keywords": [
+    "khata",
+    "pos",
+    "inventory-management",
+    "accounting",
+    "mern-stack",
+    "acid-transactions",
+    "rbac",
+    "recharts",
+    "enterprise-retail"
+  ],
+  "author": "Ahsan Qamar",
+  "license": "MIT"
+}
