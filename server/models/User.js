@@ -29,6 +29,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a shop name'],
       trim: true
+    },
+    role: {
+      type: String,
+      enum: ['Owner', 'Cashier'],
+      default: 'Cashier'
     }
   },
   {
@@ -53,7 +58,7 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 // Method to sign JWT token
 userSchema.methods.getSignedJwtToken = function () {
   return jwt.sign(
-    { id: this._id, email: this.email },
+    { id: this._id, email: this.email, role: this.role },
     process.env.JWT_SECRET || 'secret_key',
     { expiresIn: process.env.JWT_EXPIRE || '1d' }
   );

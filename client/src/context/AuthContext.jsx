@@ -19,10 +19,16 @@ export const AuthProvider = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken);
         try {
-          // It's better to fetch user from /me to ensure token is still valid
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          // Sync with /me to ensure token is still valid and fetch latest role
           const response = await api.get('/auth/me');
-          setUser(response.data.user);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
+          const updatedUser = {
+            ...response.data.user,
+            role: response.data.user?.role || parsedUser?.role || 'Cashier'
+          };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
         } catch (error) {
           console.error('Failed to restore user:', error);
           logout();
@@ -37,34 +43,55 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { token: newToken, user: newUser } = response.data;
+      const { token: newToken, user: newUser, role } = response.data;
+      const userWithRole = { ...newUser, role: newUser?.role || role || 'Cashier' };
       
       setToken(newToken);
-      setUser(newUser);
+      setUser(userWithRole);
       
       localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem('user', JSON.stringify(userWithRole));
       
-      return { success: true };
+      return { success: true, role: userWithRole.role };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { 
+        success: false, 
+        message: error.response?.data?.message || error.message 
+      };
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData);
-      const { token: newToken, user: newUser } = response.data;
+      const payload = { role: 'Owner', ...userData };
+      const response = await api.post('/auth/register', payload);
+      const { token: newToken, user: newUser, role } = response.data;
+      const userWithRole = { ...newUser, role: newUser?.role || role || 'Owner' };
       
       setToken(newToken);
-      setUser(newUser);
+      setUser(userWithRole);
       
       localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem('user', JSON.stringify(userWithRole));
       
-      return { success: true };
+      return { success: true, role: userWithRole.role };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { 
+        success: false, 
+        message: error.response?.data?.message || error.message 
+      };
+    }
+  };
+
+  const registerCashier = async (cashierData) => {
+    try {
+      const response = await api.post('/auth/register-cashier', cashierData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message
+      };
     }
   };
 
@@ -75,12 +102,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   };
 
+  const isOwner = user?.role === 'Owner';
+  const isCashier = user?.role === 'Cashier';
+
   const value = {
     user,
     token,
+    role: user?.role || 'Cashier',
+    isOwner,
+    isCashier,
     loading,
     login,
     register,
+    registerCashier,
     logout
   };
 

@@ -27,11 +27,18 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      toast.error('Session expired. Please log in again.');
+      toast.error('Session expired. Please log in again.', { id: 'session-expired' });
       window.location.href = '/login';
+    } else if (error.response && error.response.status === 403) {
+      const message = error.response?.data?.message || 'Access Denied: Owner permission required for this action.';
+      toast.error(message, { id: 'access-denied' });
     }
+
     const message = error.response?.data?.message || error.message || 'Something went wrong';
-    return Promise.reject(new Error(message));
+    const err = new Error(message);
+    err.response = error.response;
+    err.status = error.response?.status;
+    return Promise.reject(err);
   }
 );
 

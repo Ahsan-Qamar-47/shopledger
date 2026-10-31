@@ -53,7 +53,8 @@ const Signup = () => {
       name: name.trim(),
       shopName: shopName.trim(),
       email: email.trim(),
-      password
+      password,
+      role: 'Owner'
     });
     setLoading(false);
 

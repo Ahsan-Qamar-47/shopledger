@@ -57,3 +57,6 @@ export const initials = (n) => {
     .toUpperCase();
 };
 
+export const dateFmt = formatDate;
+export const fmt = formatCurrency;
+

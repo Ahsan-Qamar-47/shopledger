@@ -53,7 +53,19 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
-    items: [transactionItemSchema],
+    isInventorySale: {
+      type: Boolean,
+      default: true
+    },
+    profitAmount: {
+      type: Number,
+      default: 0
+    },
+    items: {
+      type: [transactionItemSchema],
+      required: false,
+      default: []
+    },
     balanceAfter: {
       type: Number
     }

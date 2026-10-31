@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
+const { getTargetUserIds } = require('../utils/authHelper');
 
 /**
  * @desc    Create a sale transaction
@@ -10,38 +11,40 @@ const Product = require('../models/Product');
  */
 const createSale = async (req, res, next) => {
   const session = await mongoose.startSession();
+  session.startTransaction();
   
   try {
-    let transaction;
+    const { customerId, items, amount, isInventorySale = true, date, notes } = req.body;
+    const targetUserIds = await getTargetUserIds(req.user);
 
-    await session.withTransaction(async () => {
-      const { customerId, items, date, notes } = req.body;
-      const userId = req.user._id;
+    // 1. Verify customer belongs to user/shop and is active
+    const customer = await Customer.findOne({
+      _id: customerId,
+      userId: { $in: targetUserIds },
+      isActive: true
+    }).session(session);
 
-      // 1. Verify customer belongs to user and is active
-      const customer = await Customer.findOne({
-        _id: customerId,
-        userId,
-        isActive: true
-      }).session(session);
+    if (!customer) {
+      throw new Error('Customer not found or inactive');
+    }
 
-      if (!customer) {
-        throw new Error('Customer not found or inactive');
-      }
+    const isInventory = !(isInventorySale === false || isInventorySale === 'false');
 
-      // 2. Fetch products and calculate total amount
-      let totalAmount = 0;
-      const transactionItems = [];
+    let totalAmount = 0;
+    let profitAmount = 0;
+    const transactionItems = [];
 
+    // 2. Stock deduction and amount/profit calculation within session
+    if (isInventory) {
       if (!items || !Array.isArray(items) || items.length === 0) {
-        throw new Error('Items array cannot be empty');
+        throw new Error('Items array cannot be empty for inventory sales');
       }
 
       for (const item of items) {
-        // Fetch product from DB
+        // Fetch product from DB within session
         const product = await Product.findOne({
           _id: item.productId,
-          userId,
+          userId: { $in: targetUserIds },
           isActive: true
         }).session(session);
 
@@ -49,8 +52,7 @@ const createSale = async (req, res, next) => {
           throw new Error(`Product with ID ${item.productId} not found or inactive`);
         }
 
-        // Check stock and deduct (safe stock deduction)
-        // Conditional update so it never goes negative
+        // Execute stock deduction within session
         const updatedProduct = await Product.findOneAndUpdate(
           {
             _id: product._id,
@@ -59,62 +61,82 @@ const createSale = async (req, res, next) => {
           {
             $inc: { stockQuantity: -item.quantity }
           },
-          { new: true, session }
+          { returnDocument: 'after', session }
         );
 
         if (!updatedProduct) {
           throw new Error(`Insufficient stock for product: ${product.name}`);
         }
 
-        // Snapshot price and name
-        const itemTotal = product.price * item.quantity;
+        // Snapshot price, calculate totals and profit
+        const itemTotal = (product.price || 0) * item.quantity;
+        const itemCost = (product.costPrice || 0) * item.quantity;
         totalAmount += itemTotal;
+        profitAmount += (itemTotal - itemCost);
 
         transactionItems.push({
           productId: product._id,
           name: product.name,
           quantity: item.quantity,
-          price: product.price // snapshot from DB
+          price: product.price
         });
       }
+    } else {
+      // Service Sale (isInventorySale: false)
+      // Bypass stock deduction entirely, set profitAmount equal to amount (service revenue)
+      totalAmount = Number(amount) || 0;
+      if (totalAmount <= 0) {
+        throw new Error('Sale amount must be greater than zero for service sales');
+      }
+      profitAmount = totalAmount;
+      if (items && Array.isArray(items)) {
+        transactionItems.push(...items);
+      }
+    }
 
-      // 3. Increment customer totalBalance
-      customer.totalBalance += totalAmount;
-      await customer.save({ session });
+    // 3. Customer balance update within session
+    customer.totalBalance += totalAmount;
+    await customer.save({ session });
 
-      // 4. Create Transaction record
-      transaction = new Transaction({
-        userId,
-        customerId,
-        type: 'SALE',
-        amount: totalAmount,
-        date: date || Date.now(),
-        notes,
-        items: transactionItems,
-        balanceAfter: customer.totalBalance
-      });
+    // 4. Transaction creation within the session array
+    const [transaction] = await Transaction.create(
+      [
+        {
+          userId: customer.userId,
+          customerId,
+          type: 'SALE',
+          amount: totalAmount,
+          date: date || Date.now(),
+          notes: notes ? notes.trim() : '',
+          isInventorySale: isInventory,
+          profitAmount,
+          items: transactionItems,
+          balanceAfter: customer.totalBalance
+        }
+      ],
+      { session }
+    );
 
-      await transaction.save({ session });
-    });
-
+    // 5. Commit transaction on success
+    await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Sale transaction completed successfully',
       data: transaction
     });
 
   } catch (error) {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
+    // 6. Abort transaction on failure
+    await session.abortTransaction();
     session.endSession();
     
     // Check if error is thrown manually for bad request
     if (
       error.message === 'Customer not found or inactive' ||
-      error.message === 'Items array cannot be empty' ||
+      error.message === 'Items array cannot be empty for inventory sales' ||
+      error.message === 'Sale amount must be greater than zero' ||
       error.message.includes('not found or inactive') ||
       error.message.includes('Insufficient stock for product')
     ) {
@@ -141,17 +163,17 @@ const createPayment = async (req, res, next) => {
 
     await session.withTransaction(async () => {
       const { customerId, amount, date, notes } = req.body;
-      const userId = req.user._id;
+      const targetUserIds = await getTargetUserIds(req.user);
 
       // 1. Validate amount
       if (!amount || amount <= 0) {
         throw new Error('Payment amount must be greater than 0');
       }
 
-      // 2. Verify customer belongs to user
+      // 2. Verify customer belongs to user/shop
       const customer = await Customer.findOne({
         _id: customerId,
-        userId,
+        userId: { $in: targetUserIds },
         isActive: true
       }).session(session);
 
@@ -165,7 +187,7 @@ const createPayment = async (req, res, next) => {
 
       // 4. Create Transaction record
       transaction = new Transaction({
-        userId,
+        userId: customer.userId,
         customerId,
         type: 'PAYMENT',
         amount,
@@ -213,15 +235,15 @@ const createPayment = async (req, res, next) => {
 const getCustomerStatement = async (req, res, next) => {
   try {
     const { customerId } = req.params;
-    const userId = req.user._id;
+    const targetUserIds = await getTargetUserIds(req.user);
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // 1. Verify customer belongs to user
+    // 1. Verify customer belongs to user/shop
     const customer = await Customer.findOne({
       _id: customerId,
-      userId,
+      userId: { $in: targetUserIds },
       isActive: true
     }).select('name phone totalBalance');
 
@@ -235,7 +257,7 @@ const getCustomerStatement = async (req, res, next) => {
     // 2. Get transactions with pagination
     const transactions = await Transaction.find({
       customerId,
-      userId
+      userId: { $in: targetUserIds }
     })
       .sort({ date: -1 }) // Newest first
       .skip(skip)
@@ -244,7 +266,7 @@ const getCustomerStatement = async (req, res, next) => {
     // 3. Get total count for pagination metadata
     const total = await Transaction.countDocuments({
       customerId,
-      userId
+      userId: { $in: targetUserIds }
     });
 
     res.status(200).json({

@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
 const { escapeRegex } = require('../utils/regex');
+const { getTargetUserIds } = require('../utils/authHelper');
 
 /**
  * @desc    Get all customers for logged in user (with search and pagination)
@@ -14,9 +15,11 @@ const getCustomers = async (req, res, next) => {
     const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
     const skip = (parsedPage - 1) * parsedLimit;
 
+    const targetUserIds = await getTargetUserIds(req.user);
+
     // User-scoped active filter
     const query = {
-      userId: req.user._id,
+      userId: { $in: targetUserIds },
       isActive: true
     };
 
@@ -56,9 +59,10 @@ const getCustomers = async (req, res, next) => {
  */
 const getCustomerById = async (req, res, next) => {
   try {
+    const targetUserIds = await getTargetUserIds(req.user);
     const customer = await Customer.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      userId: { $in: targetUserIds },
       isActive: true
     });
 

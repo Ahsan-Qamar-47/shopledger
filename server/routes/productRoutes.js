@@ -9,6 +9,7 @@ const {
   deleteProduct
 } = require('../controllers/productController');
 const { protect } = require('../middleware/auth');
+const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 
 const router = express.Router();
@@ -71,6 +72,7 @@ router
     updateProduct
   )
   .delete(
+    checkRole('Owner'),
     [param('id').isMongoId().withMessage('Invalid Product ID format')],
     validate,
     deleteProduct

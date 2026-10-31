@@ -33,7 +33,8 @@ const seedDatabase = async () => {
       name: 'Demo Owner',
       email: demoUserEmail,
       passwordHash: 'Password123!',
-      shopName: 'ShopLedger Demo Superstore'
+      shopName: 'ShopLedger Demo Superstore',
+      role: 'Owner'
     });
 
     // 2. Seed 3 Customers
@@ -70,6 +71,7 @@ const seedDatabase = async () => {
         name: 'Premium Basmati Rice 5kg',
         sku: 'RICE-5KG-01',
         price: 1850,
+        costPrice: 1500,
         stockQuantity: 45,
         lowStockThreshold: 10
       },
@@ -78,6 +80,7 @@ const seedDatabase = async () => {
         name: 'Cooking Oil 3L',
         sku: 'OIL-3L-02',
         price: 1620,
+        costPrice: 1350,
         stockQuantity: 28,
         lowStockThreshold: 5
       },
@@ -86,6 +89,7 @@ const seedDatabase = async () => {
         name: 'Refined Wheat Flour (Atta) 10kg',
         sku: 'ATTA-10KG-03',
         price: 1400,
+        costPrice: 1150,
         stockQuantity: 2, // Low stock (<= 5)
         lowStockThreshold: 5
       },
@@ -94,6 +98,7 @@ const seedDatabase = async () => {
         name: 'White Sugar 1kg',
         sku: 'SUGAR-1KG-04',
         price: 150,
+        costPrice: 120,
         stockQuantity: 1, // Low stock (<= 10)
         lowStockThreshold: 10
       },
@@ -102,6 +107,7 @@ const seedDatabase = async () => {
         name: 'Green Tea Pack 250g',
         sku: 'TEA-250G-05',
         price: 480,
+        costPrice: 380,
         stockQuantity: 18,
         lowStockThreshold: 5
       }

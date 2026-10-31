@@ -1,10 +1,70 @@
 const Customer = require('../models/Customer');
 const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
+const Expense = require('../models/Expense');
+const User = require('../models/User');
 const moment = require('moment-timezone');
 
 /**
- * @desc    Get dashboard statistics
+ * Helper to aggregate sales, profit, expenses, and calculate net income for a given date range
+ *
+ * @param {mongoose.Types.ObjectId} userId
+ * @param {Date} startDate
+ * @param {Date} endDate
+ * @returns {Promise<{totalSales: number, profitAmount: number, grossProfit: number, totalExpenses: number, netIncome: number}>}
+ */
+const aggregateMetricsForRange = async (userId, startDate, endDate) => {
+  const [salesAgg, expenseAgg] = await Promise.all([
+    Transaction.aggregate([
+      {
+        $match: {
+          userId: userId,
+          type: 'SALE',
+          date: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: '$amount' },
+          profitAmount: { $sum: '$profitAmount' }
+        }
+      }
+    ]),
+    Expense.aggregate([
+      {
+        $match: {
+          userId: userId,
+          isActive: true,
+          date: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalExpenses: { $sum: '$amount' }
+        }
+      }
+    ])
+  ]);
+
+  const totalSales = salesAgg.length > 0 ? salesAgg[0].totalSales : 0;
+  const grossProfit = salesAgg.length > 0 ? salesAgg[0].profitAmount : 0;
+  const profitAmount = grossProfit;
+  const totalExpenses = expenseAgg.length > 0 ? expenseAgg[0].totalExpenses : 0;
+  const netIncome = grossProfit - totalExpenses;
+
+  return {
+    totalSales,
+    profitAmount,
+    grossProfit,
+    totalExpenses,
+    netIncome
+  };
+};
+
+/**
+ * @desc    Get dashboard statistics with date-range aggregation pipelines
  * @route   GET /api/dashboard/stats
  * @access  Private
  */
@@ -12,118 +72,237 @@ exports.getDashboardStats = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const timezone = 'Asia/Karachi';
+    const { range = 'today', startDate: customStart, endDate: customEnd } = req.query;
 
-    // 1. Calculate totalReceivables (sum of positive balances)
-    const receivablesAggregation = await Customer.aggregate([
-      {
-        $match: {
-          userId: userId,
-          totalBalance: { $gt: 0 },
-          isActive: true
+    const now = moment.tz(timezone);
+    const endOfDay = now.clone().endOf('day').toDate();
+
+    // Predefined date boundaries
+    const todayStart = now.clone().startOf('day').toDate();
+    const weekStart = now.clone().startOf('week').toDate();
+    const monthStart = now.clone().startOf('month').toDate();
+
+    // Determine target range for selected metrics
+    let selectedStart = todayStart;
+    let selectedEnd = endOfDay;
+    let selectedRangeKey = (range || 'today').toLowerCase();
+
+    if (customStart && customEnd) {
+      selectedStart = new Date(customStart);
+      selectedEnd = new Date(customEnd);
+      selectedRangeKey = 'custom';
+    } else if (selectedRangeKey === 'week') {
+      selectedStart = weekStart;
+    } else if (selectedRangeKey === 'month') {
+      selectedStart = monthStart;
+    } else {
+      selectedRangeKey = 'today';
+      selectedStart = todayStart;
+    }
+
+    // Run aggregations concurrently
+    const [
+      selectedMetrics,
+      todayMetrics,
+      weekMetrics,
+      monthMetrics,
+      receivablesAgg,
+      topDebtors,
+      lowStockItems,
+      salesLast7DaysAgg
+    ] = await Promise.all([
+      aggregateMetricsForRange(userId, selectedStart, selectedEnd),
+      aggregateMetricsForRange(userId, todayStart, endOfDay),
+      aggregateMetricsForRange(userId, weekStart, endOfDay),
+      aggregateMetricsForRange(userId, monthStart, endOfDay),
+      Customer.aggregate([
+        {
+          $match: {
+            userId: userId,
+            totalBalance: { $gt: 0 },
+            isActive: true
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalReceivables: { $sum: '$totalBalance' }
+          }
         }
-      },
-      {
-        $group: {
-          _id: null,
-          totalReceivables: { $sum: '$totalBalance' }
+      ]),
+      Customer.find({
+        userId: userId,
+        totalBalance: { $gt: 0 },
+        isActive: true
+      })
+        .sort({ totalBalance: -1 })
+        .limit(5)
+        .select('name phone totalBalance'),
+      Product.find({
+        userId: userId,
+        isActive: true,
+        $expr: { $lte: ['$stockQuantity', '$lowStockThreshold'] }
+      })
+        .select('name sku stockQuantity lowStockThreshold')
+        .sort({ stockQuantity: 1 }),
+      Transaction.aggregate([
+        {
+          $match: {
+            userId: userId,
+            type: 'SALE',
+            date: {
+              $gte: now.clone().subtract(29, 'days').startOf('day').toDate(),
+              $lte: endOfDay
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: timezone } },
+            sales: { $sum: '$amount' },
+            grossProfit: { $sum: '$profitAmount' }
+          }
+        },
+        {
+          $sort: { _id: 1 }
         }
-      }
+      ])
     ]);
-    const totalReceivables = receivablesAggregation.length > 0 ? receivablesAggregation[0].totalReceivables : 0;
 
-    // 2. Calculate totalSalesToday (start of day to end of day in Asia/Karachi)
-    const startOfDay = moment.tz(timezone).startOf('day').toDate();
-    const endOfDay = moment.tz(timezone).endOf('day').toDate();
-
-    const salesTodayAggregation = await Transaction.aggregate([
-      {
-        $match: {
-          userId: userId,
-          type: 'SALE',
-          date: { $gte: startOfDay, $lte: endOfDay }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalSalesToday: { $sum: '$amount' }
-        }
-      }
-    ]);
-    const totalSalesToday = salesTodayAggregation.length > 0 ? salesTodayAggregation[0].totalSalesToday : 0;
-
-    // 3. Get topDebtors (top 5 with balance > 0)
-    const topDebtors = await Customer.find({
-      userId: userId,
-      totalBalance: { $gt: 0 },
-      isActive: true
-    })
-      .sort({ totalBalance: -1 })
-      .limit(5)
-      .select('name phone totalBalance');
-
-    // 4. Get lowStockItems list plus lowStockItemCount
-    const lowStockItems = await Product.find({
-      userId: userId,
-      isActive: true,
-      $expr: { $lte: ['$stockQuantity', '$lowStockThreshold'] }
-    })
-      .select('name sku stockQuantity lowStockThreshold')
-      .sort({ stockQuantity: 1 });
-      
+    const totalReceivables = receivablesAgg.length > 0 ? receivablesAgg[0].totalReceivables : 0;
     const lowStockItemCount = lowStockItems.length;
 
-    // 5. Optional: return salesLast7Days for the chart
-    const sevenDaysAgo = moment.tz(timezone).subtract(6, 'days').startOf('day').toDate();
-    
-    const salesLast7DaysAgg = await Transaction.aggregate([
-      {
-        $match: {
-          userId: userId,
-          type: 'SALE',
-          date: { $gte: sevenDaysAgo, $lte: endOfDay }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: timezone } },
-          sales: { $sum: '$amount' }
-        }
-      },
-      {
-        $sort: { _id: 1 }
-      }
-    ]);
-
-    // Format salesLast7Days for chart to ensure all 7 days are present even if 0
-    const salesLast7DaysMap = new Map();
-    salesLast7DaysAgg.forEach(item => {
-      salesLast7DaysMap.set(item._id, item.sales);
+    // Format 30-day trend and 7-day sales for charts ensuring consecutive days
+    const trendMap = new Map();
+    salesLast7DaysAgg.forEach((item) => {
+      trendMap.set(item._id, {
+        sales: item.sales || 0,
+        grossProfit: item.grossProfit || 0
+      });
     });
 
-    const salesLast7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const dateStr = moment.tz(timezone).subtract(i, 'days').format('YYYY-MM-DD');
-      const displayDate = moment.tz(timezone).subtract(i, 'days').format('MMM DD');
-      salesLast7Days.push({
+    const profitTrend30Days = [];
+    for (let i = 29; i >= 0; i--) {
+      const dateStr = now.clone().subtract(i, 'days').format('YYYY-MM-DD');
+      const displayDate = now.clone().subtract(i, 'days').format('MMM DD');
+      const dataPoint = trendMap.get(dateStr) || { sales: 0, grossProfit: 0 };
+      profitTrend30Days.push({
         date: dateStr,
         displayDate: displayDate,
-        sales: salesLast7DaysMap.get(dateStr) || 0
+        sales: dataPoint.sales,
+        grossProfit: dataPoint.grossProfit
       });
     }
+
+    const salesLast7Days = profitTrend30Days.slice(-7).map((d) => ({
+      date: d.date,
+      displayDate: d.displayDate,
+      sales: d.sales
+    }));
 
     res.status(200).json({
       success: true,
       data: {
+        // Selected range metrics (Day 3-4 aggregation pipeline)
+        range: selectedRangeKey,
+        dateRange: {
+          startDate: selectedStart,
+          endDate: selectedEnd
+        },
+        totalSales: selectedMetrics.totalSales,
+        profitAmount: selectedMetrics.profitAmount,
+        grossProfit: selectedMetrics.grossProfit,
+        totalExpenses: selectedMetrics.totalExpenses,
+        netIncome: selectedMetrics.netIncome,
+
+        // Range breakdowns (Today, Week, Month)
+        breakdown: {
+          today: todayMetrics,
+          week: weekMetrics,
+          month: monthMetrics
+        },
+
+        // Legacy & extended UI metrics
+        totalSalesToday: todayMetrics.totalSales,
         totalReceivables,
-        totalSalesToday,
         topDebtors,
         lowStockItems,
         lowStockItemCount,
-        salesLast7Days
+        salesLast7Days,
+        profitTrend30Days
       }
     });
+  } catch (error) {
+    next(error);
+  }
+};
 
+/**
+ * @desc    Get cashier operational dashboard statistics (no financial profit/expense data)
+ * @route   GET /api/dashboard/cashier-stats
+ * @access  Private (Cashier & Owner)
+ */
+exports.getCashierDashboardStats = async (req, res, next) => {
+  try {
+    let targetUserIds = [req.user._id];
+
+    // If Cashier belongs to a shop with an Owner, include Owner's operational entities
+    if (req.user.role === 'Cashier' && req.user.shopName) {
+      const owner = await User.findOne({
+        shopName: req.user.shopName,
+        role: 'Owner'
+      });
+      if (owner) {
+        targetUserIds.push(owner._id);
+      }
+    }
+
+    const [receivablesAgg, topDebtors, lowStockItems] = await Promise.all([
+      Customer.aggregate([
+        {
+          $match: {
+            userId: { $in: targetUserIds },
+            totalBalance: { $gt: 0 },
+            isActive: true
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalReceivables: { $sum: '$totalBalance' }
+          }
+        }
+      ]),
+      Customer.find({
+        userId: { $in: targetUserIds },
+        totalBalance: { $gt: 0 },
+        isActive: true
+      })
+        .sort({ totalBalance: -1 })
+        .limit(5)
+        .select('name phone totalBalance'),
+      Product.find({
+        userId: { $in: targetUserIds },
+        isActive: true,
+        $expr: { $lte: ['$stockQuantity', '$lowStockThreshold'] }
+      })
+        .select('name sku stockQuantity lowStockThreshold price')
+        .sort({ stockQuantity: 1 })
+    ]);
+
+    const totalReceivables = receivablesAgg.length > 0 ? receivablesAgg[0].totalReceivables : 0;
+    const lowStockItemCount = lowStockItems.length;
+
+    // Return strictly operational data (excluding all financial profit/expense data)
+    res.status(200).json({
+      success: true,
+      data: {
+        totalReceivables,
+        lowStockItems,
+        lowStockItemCount,
+        topDebtors
+      }
+    });
   } catch (error) {
     next(error);
   }

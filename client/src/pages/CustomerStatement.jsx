@@ -11,7 +11,8 @@ import {
   MessageCircle,
   FileText,
   AlertTriangle,
-  Check
+  Check,
+  Wrench
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
@@ -260,9 +261,12 @@ const CustomerStatement = () => {
             <div className="tl">
               {transactions.map((tx, i) => {
                 const isSale = tx.type === 'SALE';
+                const isService = isSale && tx.isInventorySale === false;
                 const itemsSummary =
                   isSale && tx.items && tx.items.length > 0
                     ? tx.items.map((it) => `${it.quantity}x ${it.name}`).join(', ')
+                    : isService
+                    ? 'Service revenue'
                     : '';
 
                 return (
@@ -273,7 +277,11 @@ const CustomerStatement = () => {
                   >
                     <div className="ic">
                       {isSale ? (
-                        <ShoppingCart className="ico" />
+                        isService ? (
+                          <Wrench className="ico" />
+                        ) : (
+                          <ShoppingCart className="ico" />
+                        )
                       ) : (
                         <ArrowDown className="ico" />
                       )}
@@ -281,7 +289,13 @@ const CustomerStatement = () => {
 
                     <div className="grow">
                       <div className="t1">
-                        <b>{isSale ? 'Sale (Udhaar)' : 'Payment received'}</b>
+                        <b>
+                          {isSale
+                            ? isService
+                              ? 'Service (Udhaar)'
+                              : 'Sale (Udhaar)'
+                            : 'Payment received'}
+                        </b>
                         <span className="amt">
                           {isSale ? '+' : '−'}
                           {formatCurrency(tx.amount)}

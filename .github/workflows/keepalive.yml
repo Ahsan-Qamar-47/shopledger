@@ -1,0 +1,29 @@
+name: Render Free Tier Keep-Alive Ping
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render free-tier cold starts
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual triggering from GitHub Actions tab
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Render Backend Health Endpoint
+        env:
+          RENDER_URL: ${{ secrets.RENDER_BACKEND_URL || 'https://shopledger-api.onrender.com' }}
+        run: |
+          TARGET="${RENDER_URL%/}/api/health"
+          echo "Pinging health endpoint: $TARGET"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$TARGET" || echo "failed")
+          echo "Response HTTP Status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "Backend is warm and healthy."
+          else
+            echo "Warning: Response status was $STATUS. Initiating wake-up retry..."
+            sleep 10
+            STATUS_RETRY=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$TARGET" || echo "failed")
+            echo "Retry response HTTP Status: $STATUS_RETRY"
+          fi

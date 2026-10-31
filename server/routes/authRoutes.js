@@ -1,11 +1,20 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { register, login, getMe } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const { register, login, getMe, registerCashier, getCashiers } = require('../controllers/authController');
+const { verifyToken, protect } = require('../middleware/auth');
+const { checkRole } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const { loginLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
+
+// @route   GET /api/auth/cashiers (Protected by verifyToken and checkRole('Owner'))
+router.get(
+  '/cashiers',
+  verifyToken,
+  checkRole('Owner'),
+  getCashiers
+);
 
 // @route   POST /api/auth/register
 router.post(
@@ -14,12 +23,30 @@ router.post(
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('email').trim().isEmail().withMessage('Please provide a valid email address'),
     body('shopName').trim().notEmpty().withMessage('Shop name is required'),
+    body('role').optional().isIn(['Owner', 'Cashier']).withMessage('Role must be either Owner or Cashier'),
     body('password')
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters long')
   ],
   validate,
   register
+);
+
+// @route   POST /api/auth/register-cashier (Protected by verifyToken and checkRole('Owner'))
+router.post(
+  '/register-cashier',
+  verifyToken,
+  checkRole('Owner'),
+  [
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('email').trim().isEmail().withMessage('Please provide a valid email address'),
+    body('password')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long'),
+    body('shopName').optional().trim()
+  ],
+  validate,
+  registerCashier
 );
 
 // @route   POST /api/auth/login
