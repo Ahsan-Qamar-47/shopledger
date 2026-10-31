@@ -37,12 +37,9 @@ const CustomerStatement = () => {
 
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const generatedDateStr = React.useMemo(() => formatDate(new Date()), []);
 
-  useEffect(() => {
-    fetchStatement(1);
-  }, [id]);
-
-  const fetchStatement = async (pageNum = 1) => {
+  const fetchStatement = React.useCallback(async (pageNum = 1) => {
     try {
       if (pageNum === 1) setLoading(true);
       else setLoadingMore(true);
@@ -73,7 +70,11 @@ const CustomerStatement = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchStatement(1);
+  }, [fetchStatement]);
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
@@ -114,7 +115,7 @@ const CustomerStatement = () => {
 
       generateStatementPdf(customer, allTransactions, user);
       toast.success('Statement PDF generated');
-    } catch (_error) {
+    } catch {
       // Fallback to browser print if jsPDF has any issue
       window.print();
     } finally {
@@ -168,7 +169,7 @@ const CustomerStatement = () => {
           ShopLedger – Customer Statement
         </h2>
         <p>
-          {user?.shopName || 'ShopLedger'} · Generated {formatDate(new Date())}
+          {user?.shopName || 'ShopLedger'} · Generated {generatedDateStr}
         </p>
       </div>
 

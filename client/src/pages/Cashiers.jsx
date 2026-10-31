@@ -7,17 +7,12 @@ import RegisterCashierModal from '../components/RegisterCashierModal';
 import { initials, dateFmt } from '../utils/formatters';
 
 const Cashiers = () => {
-  const { user, isOwner } = useAuth();
+  const { isOwner } = useAuth();
   const [cashiers, setCashiers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Cashiers tab is Owner only
-  if (!isOwner) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const fetchCashiers = async () => {
+  const fetchCashiers = React.useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get('/auth/cashiers');
@@ -27,11 +22,18 @@ const Cashiers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchCashiers();
-  }, []);
+    if (isOwner) {
+      fetchCashiers();
+    }
+  }, [isOwner, fetchCashiers]);
+
+  // Cashiers tab is Owner only
+  if (!isOwner) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleCashierRegistered = (newCashier) => {
     if (newCashier) {
@@ -127,7 +129,7 @@ const Cashiers = () => {
                     <span className="badge warn">Cashier</span>
                     <small className="flex items-center gap-1 text-muted">
                       <Calendar className="w-3 h-3 inline" />
-                      Added {dateFmt(c.createdAt || Date.now())}
+                      Added {c.createdAt ? dateFmt(c.createdAt) : 'Recently'}
                     </small>
                   </div>
                 </div>

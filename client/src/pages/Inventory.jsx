@@ -39,11 +39,7 @@ const Inventory = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [debouncedSearch, filterLowStock]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = React.useCallback(async () => {
     try {
       const response = await api.get('/products', {
         params: {
@@ -53,12 +49,16 @@ const Inventory = () => {
         }
       });
       setProducts(response.data.data || []);
-    } catch (_error) {
+    } catch {
       toast.error('Failed to load inventory');
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, filterLowStock]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const openAddModal = () => {
     setModalMode('add');

@@ -33,11 +33,7 @@ const Customers = () => {
   const [customerToDelete, setCustomerToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [debouncedSearch]);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = React.useCallback(async () => {
     try {
       const response = await api.get('/customers', {
         params: { search: debouncedSearch }
@@ -48,7 +44,11 @@ const Customers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const openAddModal = () => {
     setModalMode('add');

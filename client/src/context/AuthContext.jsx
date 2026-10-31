@@ -10,6 +10,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || null);
   const [loading, setLoading] = useState(true);
 
+  const logout = React.useCallback(() => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }, []);
+
   useEffect(() => {
     // Restore user from local storage or fetch from /api/auth/me
     const restoreUser = async () => {
@@ -93,13 +100,6 @@ export const AuthProvider = ({ children }) => {
         message: error.response?.data?.message || error.message
       };
     }
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
   };
 
   const isOwner = user?.role === 'Owner';

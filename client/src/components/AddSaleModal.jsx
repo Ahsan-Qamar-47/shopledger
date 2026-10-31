@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import Modal from './ui/Modal';
 import Button from './ui/Button';
-import { Plus, Trash2, Info, Package, Wrench } from 'lucide-react';
+import { Plus, Trash2, Info } from 'lucide-react';
 import { fmt } from '../utils/formatters';
 
 const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }) => {
@@ -16,6 +16,15 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const fetchProducts = React.useCallback(async () => {
+    try {
+      const response = await api.get('/products', { params: { limit: 1000 } });
+      setProducts(response.data.data || []);
+    } catch {
+      toast.error('Failed to load products');
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       fetchProducts();
@@ -26,16 +35,7 @@ const AddSaleModal = ({ isOpen, onClose, customerId, customerName, onSaleAdded }
       setNotes('');
       setErrorMessage('');
     }
-  }, [isOpen]);
-
-  const fetchProducts = async () => {
-    try {
-      const response = await api.get('/products', { params: { limit: 1000 } });
-      setProducts(response.data.data || []);
-    } catch (error) {
-      toast.error('Failed to load products');
-    }
-  };
+  }, [isOpen, fetchProducts]);
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];

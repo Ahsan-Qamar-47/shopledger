@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
-import AddExpenseModal, { EXPENSE_CATEGORIES } from '../components/AddExpenseModal';
+import AddExpenseModal from '../components/AddExpenseModal';
 import { fmt, dateFmt } from '../utils/formatters';
 
 const categoryIconMap = {
@@ -47,12 +47,7 @@ const Expenses = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  // Restrict page to Owner
-  if (!isOwner) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  const fetchExpenses = async () => {
+  const fetchExpenses = React.useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get('/expenses?limit=100');
@@ -63,11 +58,30 @@ const Expenses = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    if (isOwner) {
+      fetchExpenses();
+    }
+  }, [isOwner, fetchExpenses]);
+
+  // Calculate 30-day metrics safely with useMemo
+  const { sum30Days, sumAllTime } = React.useMemo(() => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const last30 = expenses.filter(
+      (e) => new Date(e.date).getTime() >= thirtyDaysAgo
+    );
+    return {
+      sum30Days: last30.reduce((sum, e) => sum + (e.amount || 0), 0),
+      sumAllTime: expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+    };
+  }, [expenses]);
+
+  // Restrict page to Owner
+  if (!isOwner) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleDeleteExpense = async (id, category, amount) => {
     if (!window.confirm(`Delete expense of ${fmt(amount)} (${category})? It will be removed from profit calculations.`)) {
@@ -93,15 +107,6 @@ const Expenses = () => {
       fetchExpenses();
     }
   };
-
-  // Calculate 30-day metrics
-  const now = Date.now();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-  const last30DaysExpenses = expenses.filter(
-    (e) => new Date(e.date).getTime() >= thirtyDaysAgo
-  );
-  const sum30Days = last30DaysExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const sumAllTime = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
   // Filtered expenses by search query
   const filteredExpenses = expenses.filter((e) => {

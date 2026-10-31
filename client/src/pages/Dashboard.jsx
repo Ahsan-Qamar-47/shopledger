@@ -5,12 +5,10 @@ import api from '../services/api';
 import { 
   Wallet, 
   TrendingUp, 
-  Users, 
   AlertTriangle, 
   CheckCircle2, 
   Coins, 
   Receipt, 
-  Package,
   ArrowUpRight, 
   ArrowDownRight 
 } from 'lucide-react';
@@ -18,20 +16,17 @@ import { fmt, colorFor, initials } from '../utils/formatters';
 import GrossProfitChart from '../components/GrossProfitChart';
 
 const Dashboard = () => {
-  const { user, isOwner } = useAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [customerCount, setCustomerCount] = useState(0);
   const [range, setRange] = useState('today');
   const [loading, setLoading] = useState(true);
-  const [isFetchingRange, setIsFetchingRange] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         if (!stats) {
           setLoading(true);
-        } else {
-          setIsFetchingRange(true);
         }
 
         const statsEndpoint =
@@ -56,7 +51,6 @@ const Dashboard = () => {
         console.error('Failed to fetch dashboard stats', error);
       } finally {
         setLoading(false);
-        setIsFetchingRange(false);
       }
     };
 
@@ -83,8 +77,6 @@ const Dashboard = () => {
   const totalReceivables = stats?.totalReceivables || 0;
   const topDebtors = stats?.topDebtors || [];
   const lowStockItems = stats?.lowStockItems || [];
-  const salesDays = stats?.salesLast7Days || [];
-  const maxSale = Math.max(...salesDays.map((d) => d.sales || 0), 1);
 
   // Cashier View: Strip all financial metrics, display operational terminal
   if (user?.role === 'Cashier') {
