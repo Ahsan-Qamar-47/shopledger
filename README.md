@@ -54,45 +54,48 @@ Explore the live production environment deployed on the **Vercel Edge Network** 
 ```mermaid
 flowchart TD
     subgraph Client["Client Tier (React 19 + Vite 8)"]
-        UI[Interactive UI / SPA]
-        AuthCtx[Auth Context & State]
-        Interceptors[Axios HTTP 403 Interceptor]
+        UI["Interactive UI / SPA"]
+        AuthCtx["Auth Context & State"]
+        Interceptors["Axios HTTP 403 Interceptor"]
     end
 
     subgraph Gateway["API Security & Middleware (Express 5)"]
-        Helmet[Helmet Security Headers]
-        RateLimit[Express Rate Limiter]
-        Sanitizer[Mongo Sanitize]
-        JWTAuth[JWT Auth Guard]
-        RBAC[RBAC Role Guard: Owner vs Cashier]
+        Helmet["Helmet Security Headers"]
+        RateLimit["Express Rate Limiter"]
+        Sanitizer["Mongo Sanitize"]
+        JWTAuth["JWT Auth Guard"]
+        RBAC["RBAC Role Guard: Owner vs Cashier"]
     end
 
     subgraph Services["Core Application Services"]
-        TxService[Transaction Engine]
-        ExpService[Expense Management]
-        DashService[Aggregation Pipeline Engine]
-        StaffService[Cashier Provisioning]
+        TxService["Transaction Engine"]
+        ExpService["Expense Management"]
+        DashService["Aggregation Pipeline Engine"]
+        StaffService["Cashier Provisioning"]
     end
 
     subgraph Database["Database Tier (MongoDB Atlas Replica Set)"]
-        ACID[Multi-Document ACID Session]
-        Users[(Users & Roles)]
-        Products[(Products & Inventory)]
-        Transactions[(Transaction Ledgers)]
-        Expenses[(Operating Expenses)]
+        ACID["Multi-Document ACID Session"]
+        Users[("Users & Roles")]
+        Products[("Products & Inventory")]
+        Transactions[("Transaction Ledgers")]
+        Expenses[("Operating Expenses")]
     end
 
     UI --> AuthCtx
     AuthCtx --> Interceptors
-    Interceptors -->|REST API Requests| Helmet
-    Helmet --> RateLimit --> Sanitizer --> JWTAuth --> RBAC
+    Interceptors -->|"REST API Requests"| Helmet
+    Helmet --> RateLimit
+    RateLimit --> Sanitizer
+    Sanitizer --> JWTAuth
+    JWTAuth --> RBAC
 
-    RBAC -->|Authorized Owner/Cashier| TxService
-    RBAC -->|Owner Only| ExpService
-    RBAC -->|Scoped Aggregation| DashService
-    RBAC -->|Owner Only| StaffService
+    RBAC -->|"Authorized (Owner & Cashier)"| TxService
+    RBAC -->|"Owner Only"| ExpService
+    RBAC -->|"Scoped Aggregation"| DashService
+    RBAC -->|"Owner Only"| StaffService
 
-    TxService -->|startSession()| ACID
+    TxService -->|"startSession / Transaction"| ACID
     ACID --> Products
     ACID --> Transactions
     ACID --> Users
@@ -120,20 +123,20 @@ sequenceDiagram
     participant DB as MongoDB Collections
 
     Terminal->>API: POST /api/transactions (Inventory Sale)
-    API->>Session: mongoose.startSession()
-    API->>Session: session.startTransaction()
-    API->>DB: Check Product Stock >= Requested Quantity
+    API->>Session: startSession()
+    API->>Session: startTransaction()
+    API->>DB: Check Product Stock (Verify Sufficient Quantity)
     alt Insufficient Stock or System Error
-        API->>Session: session.abortTransaction()
+        API->>Session: abortTransaction()
         API-->>Terminal: HTTP 400 Bad Request (Stock Underflow)
     else Stock Validated
         API->>DB: Decrement Product Stock (atomic)
         API->>DB: Increment Customer Receivable Balance
         API->>DB: Create Immutable Transaction Ledger Record
-        API->>Session: session.commitTransaction()
+        API->>Session: commitTransaction()
         API-->>Terminal: HTTP 201 Created (Transaction Finalized)
     end
-    API->>Session: session.endSession()
+    API->>Session: endSession()
 ```
 
 ### 2. Role-Based Access Control (RBAC)
