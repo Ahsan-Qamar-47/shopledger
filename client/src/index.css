@@ -502,6 +502,10 @@ button {
   min-height: 100vh;
 }
 
+.sidebar {
+  display: none !important;
+}
+
 .topbar {
   position: sticky;
   top: 0;
@@ -594,7 +598,7 @@ button {
   }
 
   .sidebar {
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     position: sticky;
     top: 0;
