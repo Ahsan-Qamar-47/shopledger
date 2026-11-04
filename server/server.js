@@ -16,7 +16,7 @@ const app = express();
 
 // Middleware
 app.use(helmet());
-// Allowed origins for CORS (supports comma-separated values in CLIENT_URL, localhost, and Vercel domains)
+// Allowed origins for CORS (supports comma-separated values in CLIENT_URL, localhost, local LAN IPs, and Vercel domains)
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
   : ['http://localhost:5173'];
@@ -28,6 +28,10 @@ app.use(cors({
       allowedOrigins.includes(origin) ||
       allowedOrigins.includes('*') ||
       /^http:\/\/localhost:\d+$/.test(origin) ||
+      /^http:\/\/127\.0\.0\.1:\d+$/.test(origin) ||
+      /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
+      /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
+      /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$/.test(origin) ||
       /^https:\/\/.*\.vercel\.app$/.test(origin)
     ) {
       return callback(null, true);
