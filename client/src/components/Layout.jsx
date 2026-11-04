@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { 
@@ -11,8 +11,6 @@ import {
   LogOut, 
   Sun, 
   Moon, 
-  Menu, 
-  X, 
   PanelLeftClose, 
   PanelLeft 
 } from 'lucide-react';
@@ -22,15 +20,16 @@ const Layout = () => {
   const { user, isOwner, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Desktop collapsed sidebar state (persisted in localStorage)
+  // Tablet & Desktop collapsible sidebar state (persisted in localStorage)
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    return localStorage.getItem('sl_sidebar_collapsed') === 'true';
+    const saved = localStorage.getItem('sl_sidebar_collapsed');
+    if (saved !== null) {
+      return saved === 'true';
+    }
+    // Default to collapsed on tablet screens (768px - 1023px) to maximize content workspace
+    return typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024;
   });
-
-  // Mobile off-canvas drawer open state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -39,22 +38,6 @@ const Layout = () => {
       return next;
     });
   };
-
-  // Close mobile drawer on route navigation
-  useEffect(() => {
-    setIsDrawerOpen(false);
-  }, [location.pathname]);
-
-  // Handle ESC key to close mobile drawer
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isDrawerOpen) {
-        setIsDrawerOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawerOpen]);
 
   const handleLogout = () => {
     logout();
@@ -74,7 +57,7 @@ const Layout = () => {
 
   return (
     <div id="app" className={isCollapsed ? 'collapsed' : ''}>
-      {/* Desktop Sidebar (Collapsible) */}
+      {/* Tablet & Desktop Sidebar (Collapsible) */}
       <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
         <div className={`logo-box ${isCollapsed ? 'collapsed' : ''}`}>
           <div className="flex items-center gap-3 overflow-hidden">
@@ -165,24 +148,13 @@ const Layout = () => {
       {/* Main Content & Mobile Topbar */}
       <div className="main-wrap">
         <header className="topbar">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => setIsDrawerOpen(true)}
-              aria-label="Open navigation menu"
-              title="Open menu"
-            >
-              <Menu className="ico" />
-            </button>
-            <div className="logo flex items-center gap-2.5">
-              <div className="logo-mark">
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <b>ShopLedger</b>
-                <small>Digital Khata</small>
-              </div>
+          <div className="logo flex items-center gap-2.5">
+            <div className="logo-mark">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <b>ShopLedger</b>
+              <small>Digital Khata</small>
             </div>
           </div>
           <div className="top-actions">
@@ -213,98 +185,7 @@ const Layout = () => {
         </main>
       </div>
 
-      {/* Mobile Off-Canvas Drawer Backdrop */}
-      {isDrawerOpen && (
-        <div
-          className="drawer-backdrop"
-          onClick={() => setIsDrawerOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Mobile Off-Canvas Drawer Sidebar */}
-      <aside
-        className={`drawer-sidebar ${isDrawerOpen ? 'open' : ''}`}
-        aria-label="Navigation Drawer"
-      >
-        <div className="drawer-head">
-          <div className="logo flex items-center gap-3">
-            <div className="logo-mark">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <b>ShopLedger</b>
-              <small>Digital Khata System</small>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="icon-btn !w-9 !h-9"
-            onClick={() => setIsDrawerOpen(false)}
-            aria-label="Close menu"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <nav className="drawer-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.name}
-                to={item.path}
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={() => setIsDrawerOpen(false)}
-              >
-                <Icon className="ico" />
-                <span>{item.name}</span>
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        <div className="drawer-foot">
-          <div className="shopchip">
-            <div
-              className="av"
-              style={{
-                background: 'linear-gradient(135deg, var(--brand), var(--brand2))'
-              }}
-            >
-              {initials(shopName)}
-            </div>
-            <div className="overflow-hidden">
-              <b className="truncate">{shopName}</b>
-              <small>{user?.role === 'Cashier' ? 'Cashier' : 'Shop Owner'}</small>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-soft btn-block"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="ico" /> : <Moon className="ico" />}
-            <span className="theme-lbl">
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-soft btn-block !text-[var(--danger)] hover:!bg-[var(--danger-bg)]"
-            onClick={handleLogout}
-            aria-label="Logout"
-          >
-            <LogOut className="ico" />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile Bottom Navigation Bar */}
+      {/* Mobile Bottom Navigation Bar (Phones only) */}
       <nav className="bottomnav" id="bottom-nav" aria-label="Primary">
         {navItems.map((item) => {
           const Icon = item.icon;
