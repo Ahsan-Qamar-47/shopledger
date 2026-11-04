@@ -67,14 +67,15 @@ const Expenses = () => {
   }, [isOwner, fetchExpenses]);
 
   // Calculate 30-day metrics safely with useMemo
-  const { sum30Days, sumAllTime } = React.useMemo(() => {
+  const { sum30Days, sumAllTime, last30DaysExpenses } = React.useMemo(() => {
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const last30 = expenses.filter(
       (e) => new Date(e.date).getTime() >= thirtyDaysAgo
     );
     return {
       sum30Days: last30.reduce((sum, e) => sum + (e.amount || 0), 0),
-      sumAllTime: expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+      sumAllTime: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+      last30DaysExpenses: last30
     };
   }, [expenses]);
 
