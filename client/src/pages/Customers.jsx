@@ -11,8 +11,10 @@ import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { formatCurrency, colorFor, initials } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 
 const Customers = () => {
+  const { isOwner } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -178,65 +180,73 @@ const Customers = () => {
             return (
               <div
                 key={c._id}
-                className="ccard group relative cursor-pointer"
+                className="ccard custcard group cursor-pointer"
                 onClick={() => navigate(`/customers/${c._id}`)}
               >
-                <div
-                  className="av"
-                  style={{ background: colorFor(c.name) }}
-                >
-                  {initials(c.name)}
-                </div>
+                <div className="top">
+                  <div
+                    className="av"
+                    style={{ background: colorFor(c.name) }}
+                  >
+                    {initials(c.name)}
+                  </div>
 
-                <div className="grow">
-                  <b>{c.name}</b>
-                  <small>{c.phone}</small>
-                </div>
+                  <div className="grow">
+                    <b>{c.name}</b>
+                    <small>{c.phone}</small>
+                  </div>
 
-                <div className="bal">
-                  <strong
-                    style={{
-                      color: hasDue
-                        ? 'var(--danger)'
+                  <div className="bal">
+                    <strong
+                      style={{
+                        color: hasDue
+                          ? 'var(--danger)'
+                          : hasAdvance
+                          ? 'var(--warn)'
+                          : 'var(--ok)'
+                      }}
+                    >
+                      {hasDue
+                        ? formatCurrency(c.totalBalance)
                         : hasAdvance
-                        ? 'var(--warn)'
-                        : 'var(--ok)'
-                    }}
-                  >
-                    {hasDue
-                      ? formatCurrency(c.totalBalance)
-                      : hasAdvance
-                      ? `${formatCurrency(Math.abs(c.totalBalance))} Adv`
-                      : 'Settled'}
-                  </strong>
-                  <span>
-                    View <ChevronRight className="w-3.5 h-3.5" />
-                  </span>
+                        ? `${formatCurrency(Math.abs(c.totalBalance))} Adv`
+                        : 'Settled'}
+                    </strong>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider opacity-75">
+                      {hasDue ? 'Due' : hasAdvance ? 'Advance' : 'Settled'}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Hover Action Buttons */}
-                <div
-                  className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--surface)]/90 p-1 rounded-lg backdrop-blur-sm border border-[var(--line)] shadow-sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => openEditModal(e, c)}
-                    className="p-1.5 text-[var(--muted)] hover:text-[var(--brand)] rounded transition-colors"
-                    title="Edit Customer"
-                    aria-label="Edit customer"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => openDeleteConfirm(e, c)}
-                    className="p-1.5 text-[var(--muted)] hover:text-[var(--danger)] rounded transition-colors"
-                    title="Delete Customer"
-                    aria-label="Delete customer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="foot">
+                  <span className="view-link">
+                    View Statement <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+
+                  <div className="acts" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={(e) => openEditModal(e, c)}
+                      className="btn btn-soft btn-sm !h-8 !px-3 text-xs font-semibold"
+                      title="Edit Customer"
+                      aria-label="Edit customer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 mr-1" />
+                      Edit
+                    </button>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        onClick={(e) => openDeleteConfirm(e, c)}
+                        className="btn btn-soft btn-sm !h-8 !px-3 text-xs font-semibold !text-[var(--danger)] hover:!bg-[var(--danger-bg)]"
+                        title="Delete Customer"
+                        aria-label="Delete customer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -1111,6 +1111,47 @@ div.ccard:hover {
   gap: 2px;
 }
 
+/* Customer Khata Cards */
+.custcard {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.custcard .top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.custcard .foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.custcard .foot .view-link {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: gap 0.2s;
+}
+
+.custcard:hover .foot .view-link {
+  gap: 6px;
+}
+
+.custcard .acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .pcard {
   flex-direction: column;
   align-items: stretch;
