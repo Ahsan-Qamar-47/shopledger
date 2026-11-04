@@ -18,6 +18,7 @@ const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'due' | 'advance' | 'settled'
   const debouncedSearch = useDebounce(search, 400);
   const navigate = useNavigate();
 
@@ -120,10 +121,40 @@ const Customers = () => {
     }
   };
 
-  const totalOutstanding = customers.reduce(
-    (sum, c) => sum + (c.totalBalance > 0 ? c.totalBalance : 0),
-    0
-  );
+  const counts = React.useMemo(() => {
+    let due = 0;
+    let advance = 0;
+    let settled = 0;
+    let totalDue = 0;
+
+    customers.forEach((c) => {
+      if (c.totalBalance > 0) {
+        due += 1;
+        totalDue += c.totalBalance;
+      } else if (c.totalBalance < 0) {
+        advance += 1;
+      } else {
+        settled += 1;
+      }
+    });
+
+    return {
+      all: customers.length,
+      due,
+      advance,
+      settled,
+      totalDue
+    };
+  }, [customers]);
+
+  const filteredCustomers = React.useMemo(() => {
+    return customers.filter((c) => {
+      if (filterTab === 'due') return c.totalBalance > 0;
+      if (filterTab === 'advance') return c.totalBalance < 0;
+      if (filterTab === 'settled') return c.totalBalance === 0;
+      return true;
+    });
+  }, [customers, filterTab]);
 
   return (
     <div className="view">
@@ -133,7 +164,8 @@ const Customers = () => {
           <h1>Manage Khata</h1>
           <p>
             {customers.length} customer{customers.length === 1 ? '' : 's'} ·{' '}
-            {formatCurrency(totalOutstanding)} outstanding
+            {formatCurrency(counts.totalDue)} total due
+            {filterTab !== 'all' && ` · ${filteredCustomers.length} in ${filterTab}`}
           </p>
         </div>
         <Button onClick={openAddModal} className="add-btn">
@@ -143,7 +175,7 @@ const Customers = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="searchbox mb-5">
+      <div className="searchbox mb-3">
         <Search className="ico" />
         <input
           className="input"
@@ -152,6 +184,50 @@ const Customers = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+      </div>
+
+      {/* Balance Filter Tabs */}
+      <div className="seg mb-5" role="tablist" aria-label="Customer balance filters">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filterTab === 'all'}
+          className={filterTab === 'all' ? 'active' : ''}
+          onClick={() => setFilterTab('all')}
+        >
+          <span>All</span>
+          <span className="count-pill">{counts.all}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filterTab === 'due'}
+          className={filterTab === 'due' ? 'active' : ''}
+          onClick={() => setFilterTab('due')}
+        >
+          <span>Due</span>
+          <span className="count-pill due">{counts.due}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filterTab === 'advance'}
+          className={filterTab === 'advance' ? 'active' : ''}
+          onClick={() => setFilterTab('advance')}
+        >
+          <span>Advance</span>
+          <span className="count-pill adv">{counts.advance}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filterTab === 'settled'}
+          className={filterTab === 'settled' ? 'active' : ''}
+          onClick={() => setFilterTab('settled')}
+        >
+          <span>Settled</span>
+          <span className="count-pill set">{counts.settled}</span>
+        </button>
       </div>
 
       {/* Customers List / Grid */}
@@ -171,9 +247,29 @@ const Customers = () => {
           actionLabel={search ? '' : '+ Add Customer'}
           onAction={search ? undefined : openAddModal}
         />
+      ) : filteredCustomers.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title={
+            filterTab === 'due'
+              ? 'No customers with due balance'
+              : filterTab === 'advance'
+              ? 'No customers with advance payments'
+              : 'No settled customers'
+          }
+          description={
+            filterTab === 'due'
+              ? 'None of your customers have outstanding debt at this time.'
+              : filterTab === 'advance'
+              ? 'No customers currently have advance payment credits.'
+              : 'No customers with zero balance were found in this view.'
+          }
+          actionLabel="View All Customers"
+          onAction={() => setFilterTab('all')}
+        />
       ) : (
         <div className="cards">
-          {customers.map((c) => {
+          {filteredCustomers.map((c) => {
             const hasDue = c.totalBalance > 0;
             const hasAdvance = c.totalBalance < 0;
 
